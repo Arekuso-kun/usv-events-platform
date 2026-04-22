@@ -11,5 +11,8 @@ frontend/dist/
 .env
 *.env
 
+# Supabase CLI
+supabase/.temp/
+
 # OS
 .DS_Store

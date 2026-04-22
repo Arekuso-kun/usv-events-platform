@@ -1,0 +1,3 @@
+# Minimal Supabase CLI project config.
+# Update project_id after running `supabase link`.
+project_id = "your-project-ref"

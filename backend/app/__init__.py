@@ -1,0 +1,1 @@
+"""USV Events backend package."""

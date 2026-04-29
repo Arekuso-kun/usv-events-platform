@@ -57,17 +57,19 @@ class GoogleLoginRequest(BaseModel):
 class EventCreateRequest(BaseModel):
     title: str = Field(min_length=3, max_length=255)
     description: str | None = None
-    location: str | None = Field(default=None, max_length=255)
     starts_at: datetime
     ends_at: datetime | None = None
     max_participants: int | None = Field(default=None, gt=0)
+    venue_id: str | None = None
+    faculty_id: str | None = None
+    department_id: str | None = None
 
     @field_validator("title")
     @classmethod
     def clean_title(cls, value: str) -> str:
         return value.strip()
 
-    @field_validator("description", "location")
+    @field_validator("description")
     @classmethod
     def clean_optional_text(cls, value: str | None) -> str | None:
         if value is None:
@@ -95,10 +97,13 @@ class EventResponse(BaseModel):
     id: str
     title: str
     description: str | None
-    location: str | None
+    venue_id: str | None
+    venue_name: str | None
     starts_at: datetime
     ends_at: datetime | None
     max_participants: int | None
+    faculty_id: str | None
+    department_id: str | None
     created_at: datetime
     creator_id: str
     creator_name: str

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Protocol
+from urllib.parse import urlencode
 
 from fastapi import HTTPException, status
 
@@ -15,6 +16,8 @@ class AuthService(Protocol):
     def register(self, email: str, password: str, full_name: str) -> TokenResponse: ...
 
     def login(self, email: str, password: str) -> TokenResponse: ...
+
+    def get_google_sign_in_url(self, redirect_to: str | None) -> str: ...
 
     def google_sign_in(self, id_token: str) -> TokenResponse: ...
 
@@ -68,6 +71,38 @@ class SupabaseService(AuthService, EventsService):
 
         return self._build_token_response(response)
 
+    def get_google_sign_in_url(self, redirect_to: str | None) -> str:
+        settings = get_settings()
+        safe_redirect = self._normalize_redirect_url(redirect_to)
+
+        try:
+            response = get_supabase_anon_client().auth.sign_in_with_oauth(
+                {
+                    "provider": "google",
+                    "options": {
+                        "redirect_to": safe_redirect,
+                        "query_params": {
+                            "access_type": "offline",
+                            "prompt": "select_account",
+                        },
+                    },
+                }
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Could not initialize Google OAuth: {self._stringify_error(exc)}",
+            ) from exc
+
+        auth_url = self._extract_oauth_url(response)
+        if not auth_url:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Supabase did not return an OAuth URL.",
+            )
+
+        return auth_url
+
     def google_sign_in(self, id_token: str) -> TokenResponse:
         client = get_supabase_anon_client()
 
@@ -116,11 +151,13 @@ class SupabaseService(AuthService, EventsService):
         insert_payload = {
             "title": payload.title,
             "description": payload.description,
-            "location": payload.location,
             "starts_at": payload.starts_at.isoformat(),
             "ends_at": payload.ends_at.isoformat() if payload.ends_at else None,
             "max_participants": payload.max_participants,
-            "registration_count": 0,
+            "venue_id": payload.venue_id,
+            "organizer_name": current_user.full_name,
+            "faculty_id": payload.faculty_id,
+            "department_id": payload.department_id,
             "creator_id": current_user.id,
             "creator_name": current_user.full_name,
         }
@@ -156,7 +193,7 @@ class SupabaseService(AuthService, EventsService):
                 detail="You are already registered for this event.",
             )
 
-        current_count = int(event.get("registration_count") or 0)
+        current_count = self._get_registration_count(event_id)
         max_participants = event.get("max_participants")
         if max_participants is not None and current_count >= int(max_participants):
             raise HTTPException(
@@ -176,14 +213,7 @@ class SupabaseService(AuthService, EventsService):
                 detail=f"Could not register for the event: {self._stringify_error(exc)}",
             ) from exc
 
-        updated_response = (
-            service_client.table(settings.supabase_events_table)
-            .update({"registration_count": current_count + 1})
-            .eq("id", event_id)
-            .execute()
-        )
-
-        updated_event = self._first_row(updated_response)
+        updated_event = self._get_event_or_404(event_id)
         return self._serialize_event(updated_event)
 
     def _build_token_response(self, auth_response: Any) -> TokenResponse:
@@ -203,6 +233,24 @@ class SupabaseService(AuthService, EventsService):
             expires_at=getattr(session, "expires_at", None),
             user=self._serialize_user(user),
         )
+
+    @staticmethod
+    def _extract_oauth_url(response: Any) -> str | None:
+        direct_url = getattr(response, "url", None)
+        if isinstance(direct_url, str) and direct_url:
+            return direct_url
+
+        data = getattr(response, "data", None)
+        if isinstance(data, dict):
+            candidate = data.get("url")
+            if isinstance(candidate, str) and candidate:
+                return candidate
+        elif hasattr(data, "url"):
+            candidate = getattr(data, "url", None)
+            if isinstance(candidate, str) and candidate:
+                return candidate
+
+        return None
 
     def _get_event_or_404(self, event_id: str) -> dict[str, Any]:
         settings = get_settings()
@@ -271,7 +319,7 @@ class SupabaseService(AuthService, EventsService):
         )
 
     def _serialize_event(self, row: dict[str, Any]) -> EventResponse:
-        registration_count = int(row.get("registration_count") or 0)
+        registration_count = self._get_registration_count(str(row["id"]))
         max_participants = row.get("max_participants")
         is_full = max_participants is not None and registration_count >= int(
             max_participants
@@ -281,7 +329,8 @@ class SupabaseService(AuthService, EventsService):
             id=str(row["id"]),
             title=str(row["title"]),
             description=row.get("description"),
-            location=row.get("location"),
+            venue_id=(str(row["venue_id"]) if row.get("venue_id") is not None else None),
+            venue_name=self._get_venue_name(row.get("venue_id")),
             starts_at=self._parse_datetime(row["starts_at"]),
             ends_at=(
                 self._parse_datetime(row["ends_at"]) if row.get("ends_at") else None
@@ -289,12 +338,50 @@ class SupabaseService(AuthService, EventsService):
             max_participants=(
                 int(max_participants) if max_participants is not None else None
             ),
+            faculty_id=(
+                str(row["faculty_id"]) if row.get("faculty_id") is not None else None
+            ),
+            department_id=(
+                str(row["department_id"])
+                if row.get("department_id") is not None
+                else None
+            ),
             created_at=self._parse_datetime(row["created_at"]),
             creator_id=str(row["creator_id"]),
             creator_name=str(row["creator_name"]),
             registration_count=registration_count,
             is_full=is_full,
         )
+
+    def _get_venue_name(self, venue_id: Any) -> str | None:
+        if venue_id is None:
+            return None
+
+        settings = get_settings()
+        response = (
+            get_supabase_service_client()
+            .table(settings.supabase_venues_table)
+            .select("name")
+            .eq("id", venue_id)
+            .limit(1)
+            .execute()
+        )
+        if not response.data:
+            return None
+        venue_name = response.data[0].get("name")
+        return str(venue_name) if venue_name is not None else None
+
+    def _get_registration_count(self, event_id: str) -> int:
+        settings = get_settings()
+        response = (
+            get_supabase_service_client()
+            .table(settings.supabase_event_registrations_table)
+            .select("id")
+            .eq("event_id", event_id)
+            .neq("status", "cancelled")
+            .execute()
+        )
+        return len(response.data or [])
 
     @staticmethod
     def _parse_datetime(value: Any) -> datetime:
@@ -322,6 +409,27 @@ class SupabaseService(AuthService, EventsService):
     @staticmethod
     def _stringify_error(exc: Exception) -> str:
         return str(exc).strip() or exc.__class__.__name__
+
+    @staticmethod
+    def _normalize_redirect_url(redirect_to: str | None) -> str:
+        settings = get_settings()
+        base_url = settings.frontend_url.rstrip("/")
+
+        if not redirect_to:
+            return base_url
+
+        candidate = redirect_to.strip()
+        if not candidate:
+            return base_url
+
+        if candidate.startswith(base_url):
+            return candidate
+
+        if candidate.startswith("/"):
+            return f"{base_url}{candidate}"
+
+        query = urlencode({"oauth_error": "invalid_redirect"})
+        return f"{base_url}/?{query}"
 
 
 def get_auth_service() -> AuthService:

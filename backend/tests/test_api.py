@@ -13,12 +13,16 @@ class FakeAuthService:
     login_response: TokenResponse
     google_response: TokenResponse
     current_user: UserResponse
+    google_url: str = "https://accounts.google.com/o/oauth2/v2/auth"
 
     def register(self, email: str, password: str, full_name: str) -> TokenResponse:
         return self.login_response
 
     def login(self, email: str, password: str) -> TokenResponse:
         return self.login_response
+
+    def get_google_sign_in_url(self, redirect_to: str | None) -> str:
+        return redirect_to or self.google_url
 
     def google_sign_in(self, id_token: str) -> TokenResponse:
         return self.google_response
@@ -41,10 +45,13 @@ class FakeEventsService:
             id="event-1",
             title=payload.title,
             description=payload.description,
-            location=payload.location,
+            venue_id=payload.venue_id,
+            venue_name="Corpul E" if payload.venue_id else None,
             starts_at=payload.starts_at,
             ends_at=payload.ends_at,
             max_participants=payload.max_participants,
+            faculty_id=payload.faculty_id,
+            department_id=payload.department_id,
             created_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
             creator_id=current_user.id,
             creator_name=current_user.full_name,
@@ -163,6 +170,17 @@ def test_google_login_returns_supabase_google_session(client: TestClient):
     assert payload["user"]["auth_provider"] == "google"
 
 
+def test_google_start_redirects_to_oauth_provider(client: TestClient):
+    response = client.get(
+        "/auth/google/start",
+        params={"redirect_to": "http://localhost:5173"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 307
+    assert response.headers["location"] == "http://localhost:5173"
+
+
 def test_events_flow_requires_auth_and_prevents_duplicate_registrations(
     client: TestClient,
 ):
@@ -172,7 +190,7 @@ def test_events_flow_requires_auth_and_prevents_duplicate_registrations(
         json={
             "title": "Tech Meetup",
             "description": "Lab validation session",
-            "location": "Corpul E",
+            "venue_id": "venue-1",
             "starts_at": "2026-04-10T14:00:00Z",
             "ends_at": "2026-04-10T16:00:00Z",
             "max_participants": 2,

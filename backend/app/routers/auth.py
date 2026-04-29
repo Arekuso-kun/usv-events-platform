@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.responses import RedirectResponse
 
 from ..schemas import (
     GoogleLoginRequest,
@@ -55,6 +56,15 @@ def google_sign_in(
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> TokenResponse:
     return auth_service.google_sign_in(payload.id_token)
+
+
+@router.get("/google/start")
+def start_google_sign_in(
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+    redirect_to: Annotated[str | None, Query()] = None,
+) -> RedirectResponse:
+    auth_url = auth_service.get_google_sign_in_url(redirect_to)
+    return RedirectResponse(url=auth_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
 
 @router.get("/me", response_model=UserResponse)

@@ -1,19 +1,6 @@
 version: "3.9"
 
 services:
-  db:
-    image: postgres:16
-    container_name: usv_events_db
-    restart: always
-    environment:
-      POSTGRES_USER: usv_user
-      POSTGRES_PASSWORD: usv_pass
-      POSTGRES_DB: usv_events
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
   backend:
     build: ./backend
     container_name: usv_events_backend
@@ -22,8 +9,6 @@ services:
       - ./backend:/app
     ports:
       - "8000:8000"
-    depends_on:
-      - db
 
   frontend:
     build: ./frontend
@@ -32,8 +17,9 @@ services:
       - "5173:5173"
     volumes:
       - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
     depends_on:
       - backend
-
-volumes:
-  postgres_data:

@@ -1,55 +1,72 @@
 # USV Events Platform
 
-Platforma web pentru managementul evenimentelor universitare USV.
+## Setup
 
-## Stack
-- Backend: FastAPI + Supabase Python client
-- Frontend: React + TypeScript + Vite
-- Auth + DB: Supabase
+### 1. Creeaza proiectul Supabase
 
-## API implementat
-- `POST /auth/google`
-- `POST /auth/login`
-- `GET /auth/me`
-- `GET /events`
-- `POST /events`
-- `POST /events/{id}/register`
+1. Creeaza un proiect nou in Supabase.
+2. In `Authentication -> Providers`, activeaza Google daca vrei login OAuth.
+3. In `SQL Editor`, ruleaza fisierele in ordinea:
+   1. [reset.sql](C:/workspace/usv-events-platform/backend/sql/reset.sql) - doar daca vrei sa cureti schema existenta
+   2. [schema.sql](C:/workspace/usv-events-platform/backend/sql/schema.sql)
+   3. [supabase/seed.sql](C:/workspace/usv-events-platform/supabase/seed.sql)
 
-## Cum functioneaza acum
-- `POST /auth/login` foloseste Supabase Auth cu email/parola.
-- daca utilizatorul nu exista inca, backend-ul il poate crea prin Supabase Admin si apoi face login.
-- `POST /auth/google` foloseste `sign_in_with_id_token`, deci frontend-ul trimite catre backend `id_token` primit dupa Google Sign-In.
-- `GET /auth/me` valideaza tokenul Supabase din header-ul `Authorization: Bearer ...`.
-- evenimentele si inscrierile sunt salvate in tabele Supabase prin clientul Python.
+### 2. Configureaza backend-ul
 
-## Setup Supabase
-1. Creeaza proiectul in Supabase.
-2. Ruleaza scriptul [supabase_schema.sql](C:/workspace/usv-events-platform/backend/sql/supabase_schema.sql) in SQL Editor.
-3. Activeaza providerul Google in `Authentication -> Providers`.
-4. Copiaza `backend/.env.example` in `backend/.env` si completeaza valorile Supabase.
-5. Pentru `POST /auth/google`, frontend-ul trebuie sa trimita `id_token` Google catre backend.
+1. Copiaza `backend/.env.example` in `backend/.env`.
+2. Seteaza cel putin:
+   - `SUPABASE_URL`
+   - `SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `FRONTEND_URL`
 
-Backend-ul foloseste `SUPABASE_SERVICE_ROLE_KEY` pentru operatiile server-side pe tabele. Cheia asta trebuie pastrata doar pe backend.
+### 3. Configureaza frontend-ul
 
-## Migrare cu Supabase CLI
-Structura pentru migrare este pregatita in [supabase/config.toml](C:/workspace/usv-events-platform/supabase/config.toml) si [20260401191500_init_events_schema.sql](C:/workspace/usv-events-platform/supabase/migrations/20260401191500_init_events_schema.sql).
+1. Copiaza `frontend/.env.example` in `frontend/.env`.
+2. Seteaza:
+   - `VITE_API_URL`
 
-Pasii uzuali sunt:
-```bash
-npx supabase login
-npx supabase link --project-ref your-project-ref
-npx supabase db push
-```
+### 4. Porneste proiectul
 
-Dupa `supabase link`, inlocuieste `project_id` din `supabase/config.toml` cu project ref-ul real daca este nevoie.
+Cu Docker:
 
-## Pornire
 ```bash
 docker compose up --build
 ```
 
-## Testare backend
+Sau local, separat:
+
+Backend:
+
 ```bash
 cd backend
-pytest
+pip install -r requirements.txt
+uvicorn app.main:app --reload
 ```
+
+Frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### 5. Lucreaza cu migrari Supabase
+
+Pentru proiectul acesta, schema este tinuta in Supabase remote. Cand faci modificari direct in Supabase si vrei sa le salvezi intr-o migrare locala, foloseste `Session pooler` -> `URI` din pagina `Connect`.
+
+Comanda este:
+
+```bash
+npx supabase db pull --db-url "SESSION_POOLER_URI"
+```
+
+Asta va genera o migrare noua in folderul [supabase/migrations](C:/workspace/usv-events-platform/supabase/migrations).
+
+Fluxul recomandat este:
+
+1. Modifici schema in Supabase.
+2. Rulezi comanda de mai sus.
+3. Verifici fisierul nou creat in `supabase/migrations`.
+4. Salvezi migrarea in repository impreuna cu restul schimbarilor din proiect.

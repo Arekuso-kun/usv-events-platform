@@ -26,12 +26,18 @@ class Settings(BaseModel):
     supabase_event_feedback_table: str = "event_feedback"
     supabase_event_materials_table: str = "event_materials"
     supabase_event_sponsors_table: str = "event_sponsors"
-    cors_origins: list[str] = ["*"]
+    supabase_materials_bucket: str = "event-materials"
+    cors_origins: list[str] = ["http://localhost:5173"]
+    cors_origin_regex: str | None = None
 
 
 @lru_cache
 def get_settings() -> Settings:
-    cors_origins = os.getenv("CORS_ORIGINS", "*")
+    cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173")
+    cors_origin_regex = os.getenv(
+        "CORS_ORIGIN_REGEX",
+        r"https?://localhost(:\d+)?",
+    )
 
     return Settings(
         app_name=os.getenv("APP_NAME", "USV Events Platform"),
@@ -40,4 +46,5 @@ def get_settings() -> Settings:
         supabase_service_role_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY"),
         frontend_url=os.getenv("FRONTEND_URL", "http://localhost:5173"),
         cors_origins=[item.strip() for item in cors_origins.split(",") if item.strip()],
+        cors_origin_regex=cors_origin_regex or None,
     )

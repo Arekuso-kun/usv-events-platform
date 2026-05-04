@@ -1,5 +1,7 @@
+@import "tailwindcss";
+
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   font-family: Inter, "Segoe UI", sans-serif;
   line-height: 1.5;
   font-weight: 400;

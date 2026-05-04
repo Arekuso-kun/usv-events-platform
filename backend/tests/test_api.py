@@ -4,7 +4,14 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import pytest
-from app.schemas import EventCreateRequest, EventResponse, TokenResponse, UserResponse
+from app.schemas import (
+    EventCreateRequest,
+    EventFilterParams,
+    EventResponse,
+    EventUpdateRequest,
+    TokenResponse,
+    UserResponse,
+)
 from fastapi.testclient import TestClient
 
 
@@ -35,8 +42,25 @@ class FakeAuthService:
 class FakeEventsService:
     events: list[EventResponse]
 
-    def list_events(self) -> list[EventResponse]:
+    def list_events(
+        self, filters: EventFilterParams | None = None
+    ) -> list[EventResponse]:
+        if filters and filters.status:
+            return [event for event in self.events if event.status == filters.status]
         return self.events
+
+    def list_managed_events(self, current_user: UserResponse) -> list[EventResponse]:
+        if current_user.role == "admin":
+            return self.events
+        return [event for event in self.events if event.creator_id == current_user.id]
+
+    def get_event(self, event_id: str) -> EventResponse:
+        for event in self.events:
+            if event.id == event_id:
+                return event
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=404, detail="Event not found.")
 
     def create_event(
         self, payload: EventCreateRequest, current_user: UserResponse
@@ -49,9 +73,19 @@ class FakeEventsService:
             venue_name="Corpul E" if payload.venue_id else None,
             starts_at=payload.starts_at,
             ends_at=payload.ends_at,
+            category_id=payload.category_id,
+            category_name=None,
+            participation_mode=payload.participation_mode,
+            organizer_name=payload.organizer_name or current_user.full_name,
             max_participants=payload.max_participants,
             faculty_id=payload.faculty_id,
             department_id=payload.department_id,
+            registration_required=payload.registration_required,
+            registration_url=payload.registration_url,
+            registration_deadline=payload.registration_deadline,
+            qr_code_value=payload.qr_code_value,
+            is_free=payload.is_free,
+            status="published",
             created_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
             creator_id=current_user.id,
             creator_name=current_user.full_name,
@@ -60,6 +94,17 @@ class FakeEventsService:
         )
         self.events.append(event)
         return event
+
+    def update_event(
+        self, event_id: str, payload: EventUpdateRequest, current_user: UserResponse
+    ) -> EventResponse:
+        event = self.get_event(event_id)
+        updated = event.model_copy(update=payload.model_dump(exclude_unset=True))
+        self.events = [updated if item.id == event_id else item for item in self.events]
+        return updated
+
+    def delete_event(self, event_id: str, current_user: UserResponse) -> None:
+        self.events = [event for event in self.events if event.id != event_id]
 
     def register_for_event(
         self, event_id: str, current_user: UserResponse
@@ -95,6 +140,7 @@ def client():
         full_name="Student USV",
         avatar_url=None,
         auth_provider="email",
+        role="organizer",
         created_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
     )
     token_response = TokenResponse(

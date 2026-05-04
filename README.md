@@ -52,6 +52,20 @@ npm install
 npm run dev
 ```
 
+## Backend MVP acoperit
+
+Backend-ul expune acum fluxurile minime din caietul de sarcini:
+
+- autentificare email/parola pentru organizatori/admini si Google pentru studenti `@student.usv.ro`;
+- listare evenimente publicate, detalii eveniment, filtre dupa facultate, departament, data, categorie, locatie, organizator, mod participare, intrare libera, inscriere si cod QR;
+- CRUD evenimente pentru organizator/admin, cu publicare doar prin validare admin;
+- inscriere la evenimente, lista participanti, export CSV si check-in;
+- feedback/rating dupa eveniment;
+- materiale publicate pe eveniment prin tabela `event_materials`;
+- sponsori cu sigle si atasare sponsori la evenimente;
+- export `.ics` si link Google Calendar;
+- validare/rejectare evenimente, management organizatori si raport sumar pentru admin.
+
 ### 5. Lucreaza cu migrari Supabase
 
 Pentru proiectul acesta, schema este tinuta in Supabase remote. Cand faci modificari direct in Supabase si vrei sa le salvezi intr-o migrare locala, foloseste `Session pooler` -> `URI` din pagina `Connect`.

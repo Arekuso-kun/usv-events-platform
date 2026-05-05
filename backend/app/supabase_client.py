@@ -14,6 +14,8 @@ from .config import get_settings
 
 
 class Http1PostgrestClient(SyncPostgrestClient):
+    """PostgREST client variant that forces HTTP/1 for local compatibility."""
+
     def create_session(
         self,
         base_url: str,
@@ -32,6 +34,8 @@ class Http1PostgrestClient(SyncPostgrestClient):
 
 
 def _build_client(key: str) -> Client:
+    """Create a Supabase client with non-persistent auth and service headers."""
+
     settings = get_settings()
     client = create_client(
         settings.supabase_url,
@@ -55,11 +59,15 @@ def _build_client(key: str) -> Client:
 
 @lru_cache
 def get_supabase_anon_client() -> Client:
+    """Return the cached Supabase client used for public/auth operations."""
+
     return _build_client(get_settings().supabase_anon_key)
 
 
 @lru_cache
 def get_supabase_service_client() -> Client:
+    """Return the cached Supabase service-role client for privileged operations."""
+
     settings = get_settings()
     if not settings.supabase_service_role_key:
         raise RuntimeError(

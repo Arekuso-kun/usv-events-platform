@@ -6,6 +6,8 @@ from .common import UserResponse, UserRole
 
 
 class TokenResponse(BaseModel):
+    """Authentication response containing tokens and the current user profile."""
+
     access_token: str
     refresh_token: str | None = None
     token_type: str = "bearer"
@@ -14,6 +16,8 @@ class TokenResponse(BaseModel):
 
 
 class LoginRequest(BaseModel):
+    """Email/password credentials used for local authentication."""
+
     email: str
     password: str = Field(min_length=8, max_length=128)
 
@@ -24,6 +28,8 @@ class LoginRequest(BaseModel):
 
 
 class RegisterRequest(LoginRequest):
+    """Student self-registration payload."""
+
     full_name: str = Field(min_length=1, max_length=255)
     faculty_id: str | None = None
     department_id: str | None = None
@@ -35,6 +41,8 @@ class RegisterRequest(LoginRequest):
 
 
 class OrganizerCreateRequest(RegisterRequest):
+    """Admin-created staff account payload for organizers and admins."""
+
     role: UserRole = "organizer"
 
     @field_validator("role")
@@ -46,6 +54,8 @@ class OrganizerCreateRequest(RegisterRequest):
 
 
 class UserUpdateRequest(BaseModel):
+    """Partial profile update payload for administrator user management."""
+
     full_name: str | None = Field(default=None, min_length=1, max_length=255)
     role: UserRole | None = None
     faculty_id: str | None = None
@@ -58,4 +68,6 @@ class UserUpdateRequest(BaseModel):
 
 
 class GoogleLoginRequest(BaseModel):
+    """Google Sign-In token payload sent by the frontend."""
+
     id_token: str = Field(min_length=20)

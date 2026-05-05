@@ -15,6 +15,8 @@ from .routers.sponsors import router as sponsors_router
 
 
 def create_app() -> FastAPI:
+    """Build and configure the FastAPI application instance."""
+
     settings = get_settings()
 
     app = FastAPI(title=settings.app_name)

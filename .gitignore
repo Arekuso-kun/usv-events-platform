@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 backend/.venv/
+backend/docs/sphinx_build/
 
 # Node
 frontend/node_modules/
@@ -13,6 +14,9 @@ frontend/dist/
 
 # Supabase CLI
 supabase/.temp/
+
+# Local lab/source documents
+documents/
 
 # OS
 .DS_Store

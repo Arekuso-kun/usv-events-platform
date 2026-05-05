@@ -40,6 +40,8 @@ from .supabase_client import get_supabase_anon_client, get_supabase_service_clie
 
 
 class AuthService(Protocol):
+    """Authentication contract used by FastAPI routers."""
+
     def register(self, email: str, password: str, full_name: str) -> TokenResponse: ...
 
     def login(self, email: str, password: str) -> TokenResponse: ...
@@ -52,9 +54,15 @@ class AuthService(Protocol):
 
 
 class EventsService(Protocol):
-    def list_events(self, filters: EventFilterParams | None = None) -> list[EventResponse]: ...
+    """Event, registration, material, sponsor, and feedback service contract."""
 
-    def list_managed_events(self, current_user: UserResponse) -> list[EventResponse]: ...
+    def list_events(
+        self, filters: EventFilterParams | None = None
+    ) -> list[EventResponse]: ...
+
+    def list_managed_events(
+        self, current_user: UserResponse
+    ) -> list[EventResponse]: ...
 
     def get_event(self, event_id: str) -> EventResponse: ...
 
@@ -136,9 +144,15 @@ class EventsService(Protocol):
 
 
 class AdminService(Protocol):
-    def list_pending_events(self, current_user: UserResponse) -> list[EventResponse]: ...
+    """Administrative event approval and reporting service contract."""
 
-    def approve_event(self, event_id: str, current_user: UserResponse) -> EventResponse: ...
+    def list_pending_events(
+        self, current_user: UserResponse
+    ) -> list[EventResponse]: ...
+
+    def approve_event(
+        self, event_id: str, current_user: UserResponse
+    ) -> EventResponse: ...
 
     def reject_event(
         self,
@@ -162,6 +176,8 @@ class AdminService(Protocol):
 
 @dataclass
 class SupabaseService(AuthService, EventsService, AdminService):
+    """Supabase-backed implementation for all backend business workflows."""
+
     def register(self, email: str, password: str, full_name: str) -> TokenResponse:
         user = self._create_auth_user(email, password, full_name)
         self._upsert_profile(
@@ -261,9 +277,13 @@ class SupabaseService(AuthService, EventsService, AdminService):
         user = self._extract_user(response)
         return self._serialize_user(user)
 
-    def list_events(self, filters: EventFilterParams | None = None) -> list[EventResponse]:
+    def list_events(
+        self, filters: EventFilterParams | None = None
+    ) -> list[EventResponse]:
         rows = self._select_all("events", order_by="starts_at")
-        creator_full_names = self._profile_name_map(self._row_values(rows, "creator_id"))
+        creator_full_names = self._profile_name_map(
+            self._row_values(rows, "creator_id")
+        )
         filtered_rows = self._filter_event_rows(rows, filters, creator_full_names)
         return self._serialize_events(filtered_rows)
 
@@ -547,7 +567,9 @@ class SupabaseService(AuthService, EventsService, AdminService):
                 ),
             ) from exc
 
-        public_url = self._storage_public_url(settings.supabase_materials_bucket, object_path)
+        public_url = self._storage_public_url(
+            settings.supabase_materials_bucket, object_path
+        )
         payload = MaterialCreateRequest(
             material_type=material_type,
             title=title,
@@ -659,7 +681,9 @@ class SupabaseService(AuthService, EventsService, AdminService):
         if not content:
             raise HTTPException(status_code=400, detail="Fisierul este gol.")
         if not payload.content_type.startswith("image/"):
-            raise HTTPException(status_code=400, detail="Logo-ul trebuie sa fie imagine.")
+            raise HTTPException(
+                status_code=400, detail="Logo-ul trebuie sa fie imagine."
+            )
 
         settings = get_settings()
         safe_name = self._safe_storage_name(payload.file_name)
@@ -735,14 +759,18 @@ class SupabaseService(AuthService, EventsService, AdminService):
         return [self._serialize_lookup(row) for row in self._select_all("faculties")]
 
     def list_departments(self, faculty_id: str | None) -> list[LookupResponse]:
-        query = self._client().table(get_settings().supabase_departments_table).select("*")
+        query = (
+            self._client().table(get_settings().supabase_departments_table).select("*")
+        )
         if faculty_id:
             query = query.eq("faculty_id", faculty_id)
         rows = query.order("name").execute().data or []
         return [self._serialize_lookup(row) for row in rows]
 
     def list_venues(self) -> list[LookupResponse]:
-        venues = [self._serialize_venue_lookup(row) for row in self._select_all("venues")]
+        venues = [
+            self._serialize_venue_lookup(row) for row in self._select_all("venues")
+        ]
         return sorted(venues, key=lambda item: item.name.lower())
 
     def create_venue(
@@ -762,8 +790,7 @@ class SupabaseService(AuthService, EventsService, AdminService):
 
     def list_categories(self) -> list[LookupResponse]:
         return [
-            self._serialize_lookup(row)
-            for row in self._select_all("event_categories")
+            self._serialize_lookup(row) for row in self._select_all("event_categories")
         ]
 
     def list_pending_events(self, current_user: UserResponse) -> list[EventResponse]:
@@ -830,7 +857,9 @@ class SupabaseService(AuthService, EventsService, AdminService):
         self, payload: OrganizerCreateRequest, current_user: UserResponse
     ) -> UserResponse:
         self._require_roles(current_user, {"admin"})
-        user = self._create_auth_user(payload.email, payload.password, payload.full_name)
+        user = self._create_auth_user(
+            payload.email, payload.password, payload.full_name
+        )
         profile = {
             "id": str(getattr(user, "id")),
             "email": payload.email,
@@ -981,7 +1010,10 @@ class SupabaseService(AuthService, EventsService, AdminService):
             columns="event_id,status",
         ):
             event_id = str(registration.get("event_id"))
-            if event_id in registration_counts and registration.get("status") != "cancelled":
+            if (
+                event_id in registration_counts
+                and registration.get("status") != "cancelled"
+            ):
                 registration_counts[event_id] += 1
 
         materials_by_event: dict[str, list[MaterialResponse]] = {
@@ -1039,12 +1071,12 @@ class SupabaseService(AuthService, EventsService, AdminService):
         category_ids = self._row_values(rows, "category_id")
         faculty_ids = self._row_values(rows, "faculty_id")
         department_ids = self._row_values(rows, "department_id")
-        creator_full_names = self._profile_name_map(self._row_values(rows, "creator_id"))
+        creator_full_names = self._profile_name_map(
+            self._row_values(rows, "creator_id")
+        )
         lookup_names = {
             "venues": self._lookup_name_map("venues", venue_ids),
-            "event_categories": self._lookup_name_map(
-                "event_categories", category_ids
-            ),
+            "event_categories": self._lookup_name_map("event_categories", category_ids),
             "faculties": self._lookup_name_map("faculties", faculty_ids),
             "departments": self._lookup_name_map("departments", department_ids),
         }
@@ -1075,9 +1107,13 @@ class SupabaseService(AuthService, EventsService, AdminService):
         if registration_count is None:
             registration_count = self._get_registration_count(event_id)
         max_participants = row.get("max_participants")
-        is_full = max_participants is not None and registration_count >= int(max_participants)
+        is_full = max_participants is not None and registration_count >= int(
+            max_participants
+        )
         related = related or self._event_related_names(row)
-        creator_full_name = creator_full_name or self._lookup_profile_name(row.get("creator_id"))
+        creator_full_name = creator_full_name or self._lookup_profile_name(
+            row.get("creator_id")
+        )
         starts_at = self._parse_datetime(row["starts_at"])
         ends_at = self._parse_datetime(row["ends_at"]) if row.get("ends_at") else None
         effective_status = self._effective_event_status(
@@ -1108,20 +1144,36 @@ class SupabaseService(AuthService, EventsService, AdminService):
                 if row.get("registration_deadline")
                 else None
             ),
-            max_participants=int(max_participants) if max_participants is not None else None,
+            max_participants=(
+                int(max_participants) if max_participants is not None else None
+            ),
             is_free=bool(row.get("is_free", True)),
             status=effective_status,
             creator_id=str(row["creator_id"]),
             creator_full_name=creator_full_name or "Organizator necunoscut",
             approved_by=self._optional_str(row.get("approved_by")),
-            approved_at=self._parse_datetime(row["approved_at"]) if row.get("approved_at") else None,
+            approved_at=(
+                self._parse_datetime(row["approved_at"])
+                if row.get("approved_at")
+                else None
+            ),
             rejection_reason=row.get("rejection_reason"),
             created_at=self._parse_datetime(row["created_at"]),
-            updated_at=self._parse_datetime(row["updated_at"]) if row.get("updated_at") else None,
+            updated_at=(
+                self._parse_datetime(row["updated_at"])
+                if row.get("updated_at")
+                else None
+            ),
             registration_count=registration_count,
             is_full=is_full,
-            sponsors=sponsors if sponsors is not None else self._list_event_sponsors(event_id),
-            materials=materials if materials is not None else self.list_materials(event_id),
+            sponsors=(
+                sponsors
+                if sponsors is not None
+                else self._list_event_sponsors(event_id)
+            ),
+            materials=(
+                materials if materials is not None else self.list_materials(event_id)
+            ),
         )
 
     def _serialize_material(self, row: dict[str, Any]) -> MaterialResponse:
@@ -1244,15 +1296,24 @@ class SupabaseService(AuthService, EventsService, AdminService):
                 wanted = getattr(filters, attr)
                 if wanted is not None and str(row.get(attr)) != str(wanted):
                     return False
-            if filters.is_free is not None and bool(row.get("is_free")) != filters.is_free:
+            if (
+                filters.is_free is not None
+                and bool(row.get("is_free")) != filters.is_free
+            ):
                 return False
             if (
                 filters.registration_required is not None
-                and bool(row.get("registration_required")) != filters.registration_required
+                and bool(row.get("registration_required"))
+                != filters.registration_required
             ):
                 return False
-            creator_full_name = (creator_full_names or {}).get(str(row.get("creator_id")), "")
-            if filters.organizer and filters.organizer.lower() not in creator_full_name.lower():
+            creator_full_name = (creator_full_names or {}).get(
+                str(row.get("creator_id")), ""
+            )
+            if (
+                filters.organizer
+                and filters.organizer.lower() not in creator_full_name.lower()
+            ):
                 return False
             starts_at = self._parse_datetime(row["starts_at"])
             if filters.starts_from and starts_at < filters.starts_from:
@@ -1260,7 +1321,9 @@ class SupabaseService(AuthService, EventsService, AdminService):
             if filters.starts_until and starts_at > filters.starts_until:
                 return False
             if filters.q:
-                haystack = f"{row.get('title', '')} {row.get('description', '')}".lower()
+                haystack = (
+                    f"{row.get('title', '')} {row.get('description', '')}".lower()
+                )
                 if filters.q.lower() not in haystack:
                     return False
             return True
@@ -1290,9 +1353,13 @@ class SupabaseService(AuthService, EventsService, AdminService):
     def _event_related_names(self, row: dict[str, Any]) -> dict[str, str | None]:
         return {
             "venue_name": self._lookup_name("venues", row.get("venue_id")),
-            "category_name": self._lookup_name("event_categories", row.get("category_id")),
+            "category_name": self._lookup_name(
+                "event_categories", row.get("category_id")
+            ),
             "faculty_name": self._lookup_name("faculties", row.get("faculty_id")),
-            "department_name": self._lookup_name("departments", row.get("department_id")),
+            "department_name": self._lookup_name(
+                "departments", row.get("department_id")
+            ),
         }
 
     @staticmethod
@@ -1345,13 +1412,7 @@ class SupabaseService(AuthService, EventsService, AdminService):
 
     @staticmethod
     def _row_values(rows: list[dict[str, Any]], column: str) -> list[str]:
-        return sorted(
-            {
-                str(row[column])
-                for row in rows
-                if row.get(column) is not None
-            }
-        )
+        return sorted({str(row[column]) for row in rows if row.get(column) is not None})
 
     def _list_event_sponsors(self, event_id: str) -> list[SponsorResponse]:
         links = (
@@ -1444,7 +1505,9 @@ class SupabaseService(AuthService, EventsService, AdminService):
         return response.data[0] if response.data else None
 
     def _upsert_profile(self, payload: dict[str, Any]) -> None:
-        self._client().table(get_settings().supabase_user_profiles_table).upsert(payload).execute()
+        self._client().table(get_settings().supabase_user_profiles_table).upsert(
+            payload
+        ).execute()
 
     def _get_row(
         self, table_key: str, row_id: str, *, missing_is_none: bool = False
@@ -1584,7 +1647,10 @@ class SupabaseService(AuthService, EventsService, AdminService):
     ) -> None:
         if current_user.role == "admin":
             return
-        if current_user.role == "organizer" and str(event["creator_id"]) == current_user.id:
+        if (
+            current_user.role == "organizer"
+            and str(event["creator_id"]) == current_user.id
+        ):
             return
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

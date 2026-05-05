@@ -15,6 +15,8 @@ RegistrationStatus = Literal["registered", "waitlisted", "cancelled", "checked_i
 
 
 class UserResponse(BaseModel):
+    """Public user profile returned by authentication and admin endpoints."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: str
@@ -30,12 +32,16 @@ class UserResponse(BaseModel):
 
 
 class LookupResponse(BaseModel):
+    """Generic identifier/name pair used by catalog lookup endpoints."""
+
     id: str
     name: str
     short_name: str | None = None
 
 
 class VenueCreateRequest(BaseModel):
+    """Payload for creating or reusing a physical venue."""
+
     address: str | None = None
     building: str | None = None
     room: str | None = None

@@ -10,6 +10,8 @@ load_dotenv()
 
 
 class Settings(BaseModel):
+    """Runtime configuration loaded from environment variables."""
+
     app_name: str = "USV Events Platform"
     supabase_url: str = ""
     supabase_anon_key: str = ""
@@ -34,6 +36,8 @@ class Settings(BaseModel):
 
 @lru_cache
 def get_settings() -> Settings:
+    """Return cached application settings for routers and services."""
+
     cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173")
     cors_origin_regex = os.getenv(
         "CORS_ORIGIN_REGEX",

@@ -8,6 +8,8 @@ from .common import EventStatus, MaterialType, ParticipationMode, RegistrationSt
 
 
 class EventFilterParams(BaseModel):
+    """Query parameters used to filter public event listings."""
+
     q: str | None = None
     faculty_id: str | None = None
     department_id: str | None = None
@@ -31,6 +33,8 @@ class EventFilterParams(BaseModel):
 
 
 class EventBase(BaseModel):
+    """Shared event fields and validation rules for create/update flows."""
+
     title: str = Field(min_length=3, max_length=255)
     description: str | None = None
     starts_at: datetime
@@ -78,10 +82,14 @@ class EventBase(BaseModel):
 
 
 class EventCreateRequest(EventBase):
+    """Payload used by organizers and admins to create an event."""
+
     status: EventStatus = "pending_approval"
 
 
 class EventUpdateRequest(BaseModel):
+    """Partial event payload used by organizers and admins for edits."""
+
     title: str | None = Field(default=None, min_length=3, max_length=255)
     description: str | None = None
     starts_at: datetime | None = None
@@ -117,6 +125,8 @@ class EventUpdateRequest(BaseModel):
 
 
 class SponsorResponse(BaseModel):
+    """Sponsor record exposed through sponsor and event endpoints."""
+
     id: str
     name: str
     logo_url: str | None = None
@@ -159,6 +169,8 @@ class SponsorLogoUploadRequest(BaseModel):
 
 
 class MaterialCreateRequest(BaseModel):
+    """Metadata payload for linking an already uploaded event material."""
+
     material_type: MaterialType
     title: str = Field(min_length=1, max_length=255)
     file_url: str = Field(min_length=1)
@@ -175,6 +187,8 @@ class MaterialCreateRequest(BaseModel):
 
 
 class MaterialUploadRequest(BaseModel):
+    """Base64 upload payload for event material files."""
+
     material_type: MaterialType
     title: str = Field(min_length=1, max_length=255)
     file_name: str = Field(min_length=1, max_length=255)
@@ -243,6 +257,8 @@ class EventStatsResponse(BaseModel):
 
 
 class EventResponse(BaseModel):
+    """Complete event representation returned to frontend clients."""
+
     id: str
     title: str
     description: str | None

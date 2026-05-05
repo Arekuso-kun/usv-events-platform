@@ -293,15 +293,6 @@ export function OrganizerEventDetailPage(props: OrganizerEventDetailPageProps) {
             >
               Anuleaza
             </Button>
-            {props.user?.role === "admin" && (
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => void props.updateEventStatus("completed")}
-              >
-                Finalizeaza
-              </Button>
-            )}
           </div>
         </CardContent>
       </Card>

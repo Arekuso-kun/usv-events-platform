@@ -27,6 +27,7 @@ class Settings(BaseModel):
     supabase_event_materials_table: str = "event_materials"
     supabase_event_sponsors_table: str = "event_sponsors"
     supabase_materials_bucket: str = "event-materials"
+    supabase_sponsor_logos_bucket: str = "sponsor-logos"
     cors_origins: list[str] = ["http://localhost:5173"]
     cors_origin_regex: str | None = None
 

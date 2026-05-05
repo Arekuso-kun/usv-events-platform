@@ -248,7 +248,7 @@ function PendingEventsCard(props: {
             {props.events.map((event) => (
               <TableRow key={event.id}>
                 <TableCell className="font-medium">{event.title}</TableCell>
-                <TableCell>{event.organizer_name}</TableCell>
+                <TableCell>{event.creator_full_name}</TableCell>
                 <TableCell>{formatDateTime(event.starts_at)}</TableCell>
                 <TableCell>
                   <StatusBadge status={event.status} />
@@ -542,7 +542,7 @@ function buildEventsByOrganizer(events: EventItem[]) {
   for (const event of events) {
     const key = event.creator_id;
     grouped.set(key, {
-      name: event.creator_name || event.organizer_name,
+      name: event.creator_full_name,
       count: (grouped.get(key)?.count ?? 0) + 1,
     });
   }

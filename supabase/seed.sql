@@ -29,19 +29,41 @@ values
     ('Other')
 on conflict (name) do nothing;
 
-insert into public.venues (name, address, building, room, city, maps_url)
-values
-    ('USV, Corp E, Laborator E201', 'Universitatea Stefan cel Mare din Suceava', 'Corp E', 'E201', 'Suceava', null),
-    ('USV, Aula din Corpul E', 'Universitatea Stefan cel Mare din Suceava', 'Corp E', 'Aula', 'Suceava', null),
-    ('Casa de Cultura a Studentilor Suceava', 'Strada Zorilor, Suceava', null, null, 'Suceava', null),
-    ('Campus USV, zona stadion', 'Universitatea Stefan cel Mare din Suceava', 'Campus', 'Stadion', 'Suceava', null)
-on conflict (name) do update
-set address = excluded.address,
-    building = excluded.building,
-    room = excluded.room,
-    city = excluded.city,
-    maps_url = excluded.maps_url,
-    updated_at = now();
+insert into public.venues (address, building, room)
+select 'Universitatea Stefan cel Mare din Suceava', 'Corp E', 'E201'
+where not exists (
+    select 1 from public.venues
+    where address = 'Universitatea Stefan cel Mare din Suceava'
+      and building = 'Corp E'
+      and room = 'E201'
+);
+
+insert into public.venues (address, building, room)
+select 'Universitatea Stefan cel Mare din Suceava', 'Corp E', 'Aula'
+where not exists (
+    select 1 from public.venues
+    where address = 'Universitatea Stefan cel Mare din Suceava'
+      and building = 'Corp E'
+      and room = 'Aula'
+);
+
+insert into public.venues (address, building, room)
+select 'Casa de Cultura a Studentilor Suceava', null, null
+where not exists (
+    select 1 from public.venues
+    where address = 'Casa de Cultura a Studentilor Suceava'
+      and building is null
+      and room is null
+);
+
+insert into public.venues (address, building, room)
+select 'Universitatea Stefan cel Mare din Suceava', 'Campus', 'Stadion'
+where not exists (
+    select 1 from public.venues
+    where address = 'Universitatea Stefan cel Mare din Suceava'
+      and building = 'Campus'
+      and room = 'Stadion'
+);
 
 insert into public.sponsors (name, logo_url, website_url)
 values
@@ -87,7 +109,6 @@ set email = excluded.email,
 do $$
 declare
     organizer_id uuid;
-    organizer_name text;
     attendee_id uuid;
     workshop_event_id uuid;
     career_event_id uuid;
@@ -125,19 +146,24 @@ begin
 
     select id into workshop_venue_id
     from public.venues
-    where name = 'USV, Corp E, Laborator E201';
+    where building = 'Corp E'
+      and room = 'E201';
 
     select id into career_venue_id
     from public.venues
-    where name = 'USV, Aula din Corpul E';
+    where building = 'Corp E'
+      and room = 'Aula';
 
     select id into gala_venue_id
     from public.venues
-    where name = 'Casa de Cultura a Studentilor Suceava';
+    where address = 'Casa de Cultura a Studentilor Suceava'
+      and building is null
+      and room is null;
 
     select id into cross_venue_id
     from public.venues
-    where name = 'Campus USV, zona stadion';
+    where building = 'Campus'
+      and room = 'Stadion';
 
     select id into oss_sponsor_id
     from public.sponsors
@@ -147,8 +173,8 @@ begin
     from public.sponsors
     where name = 'Assist Software';
 
-    select up.id, up.full_name
-    into organizer_id, organizer_name
+    select up.id
+    into organizer_id
     from public.user_profiles up
     order by
         case up.role
@@ -200,18 +226,15 @@ begin
         venue_id,
         category_id,
         participation_mode,
-        organizer_name,
         faculty_id,
         department_id,
         registration_required,
         registration_url,
         registration_deadline,
         max_participants,
-        qr_code_value,
         is_free,
         status,
         creator_id,
-        creator_name,
         approved_by,
         approved_at
     )
@@ -223,18 +246,15 @@ begin
         workshop_venue_id,
         ec.id,
         'hybrid'::public.participation_mode,
-        organizer_name,
         fiesc_id,
         informatics_department_id,
         true,
         'https://example.com/usv-fastapi-workshop',
         now() + interval '6 days',
         80,
-        'QR-FASTAPI-USV-2026',
         true,
         'published'::public.event_status,
         organizer_id,
-        organizer_name,
         organizer_id,
         now()
     from public.event_categories ec
@@ -253,18 +273,15 @@ begin
         venue_id,
         category_id,
         participation_mode,
-        organizer_name,
         faculty_id,
         department_id,
         registration_required,
         registration_url,
         registration_deadline,
         max_participants,
-        qr_code_value,
         is_free,
         status,
         creator_id,
-        creator_name,
         approved_by,
         approved_at
     )
@@ -276,18 +293,15 @@ begin
         career_venue_id,
         ec.id,
         'physical'::public.participation_mode,
-        organizer_name,
         null,
         null,
         true,
         'https://example.com/usv-career-connect',
         now() + interval '13 days',
         250,
-        'QR-CAREER-USV-2026',
         true,
         'published'::public.event_status,
         organizer_id,
-        organizer_name,
         organizer_id,
         now()
     from public.event_categories ec
@@ -306,18 +320,15 @@ begin
         venue_id,
         category_id,
         participation_mode,
-        organizer_name,
         faculty_id,
         department_id,
         registration_required,
         registration_url,
         registration_deadline,
         max_participants,
-        qr_code_value,
         is_free,
         status,
         creator_id,
-        creator_name,
         approved_by,
         approved_at
     )
@@ -329,18 +340,15 @@ begin
         gala_venue_id,
         ec.id,
         'physical'::public.participation_mode,
-        organizer_name,
         null,
         null,
         false,
         null,
         null,
         null,
-        'QR-GALA-USV-2026',
         true,
         'completed'::public.event_status,
         organizer_id,
-        organizer_name,
         organizer_id,
         now() - interval '12 days'
     from public.event_categories ec
@@ -359,18 +367,15 @@ begin
         venue_id,
         category_id,
         participation_mode,
-        organizer_name,
         faculty_id,
         department_id,
         registration_required,
         registration_url,
         registration_deadline,
         max_participants,
-        qr_code_value,
         is_free,
         status,
         creator_id,
-        creator_name,
         approved_by,
         approved_at
     )
@@ -382,18 +387,15 @@ begin
         cross_venue_id,
         ec.id,
         'physical'::public.participation_mode,
-        organizer_name,
         fefs_id,
         sport_department_id,
         true,
         'https://example.com/cros-campus-usv',
         now() + interval '20 days',
         120,
-        'QR-CROS-USV-2026',
         true,
         'published'::public.event_status,
         organizer_id,
-        organizer_name,
         organizer_id,
         now()
     from public.event_categories ec

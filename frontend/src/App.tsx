@@ -582,11 +582,19 @@ export default function App() {
   async function createSponsor(event: FormEvent): Promise<Sponsor | null> {
     event.preventDefault();
     try {
-      const created = await request<Sponsor>("post", "/sponsors", {
-        name: sponsorForm.name,
-        logo_url: sponsorForm.logo_url || null,
-        website_url: sponsorForm.website_url || null,
-      });
+      const created = sponsorForm.logo_file
+        ? await request<Sponsor>("post", "/sponsors/upload-logo", {
+            name: sponsorForm.name,
+            file_name: sponsorForm.logo_file.name,
+            content_type: sponsorForm.logo_file.type || "application/octet-stream",
+            content_base64: await fileToBase64(sponsorForm.logo_file),
+            website_url: sponsorForm.website_url || null,
+          })
+        : await request<Sponsor>("post", "/sponsors", {
+            name: sponsorForm.name,
+            logo_url: null,
+            website_url: sponsorForm.website_url || null,
+          });
       setSponsorForm(emptySponsorForm);
       setNotice("Sponsor adaugat.");
       await loadSponsors();
@@ -616,18 +624,19 @@ export default function App() {
   }
 
   async function createVenue() {
-    if (!venueForm.name.trim()) {
-      setError("Completeaza numele locatiei.");
+    if (
+      !venueForm.building.trim() &&
+      !venueForm.room.trim() &&
+      !venueForm.address.trim()
+    ) {
+      setError("Completeaza corpul, sala sau adresa locatiei.");
       return false;
     }
     try {
       const created = await request<Lookup>("post", "/venues", {
-        name: venueForm.name,
         address: venueForm.address || null,
         building: venueForm.building || null,
         room: venueForm.room || null,
-        city: venueForm.city || null,
-        maps_url: venueForm.maps_url || null,
       });
       setVenues((current) => [...current, created].sort((a, b) => a.name.localeCompare(b.name)));
       setEventField("venue_id", created.id);
@@ -756,7 +765,8 @@ export default function App() {
         )}
       </aside>
 
-      <main className="flex min-w-0 flex-col gap-4 p-4 sm:p-5 lg:p-[22px]">
+      <main className="min-w-0 p-4 sm:p-5 lg:p-[22px]">
+        <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-4">
         <header className="flex items-center justify-between gap-4 border-b border-[#d7dfeb] pb-3 max-sm:flex-col max-sm:items-stretch">
           <div>
             <h1 className="m-0 text-3xl leading-tight text-[#192041]">
@@ -967,6 +977,7 @@ export default function App() {
           />
           <Route path="*" element={<Navigate to="/events" replace />} />
         </Routes>
+        </div>
       </main>
     </div>
   );

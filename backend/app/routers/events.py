@@ -32,7 +32,6 @@ def list_events(
     participation_mode: Annotated[ParticipationMode | None, Query()] = None,
     is_free: Annotated[bool | None, Query()] = None,
     registration_required: Annotated[bool | None, Query()] = None,
-    has_qr: Annotated[bool | None, Query()] = None,
     starts_from: Annotated[datetime | None, Query()] = None,
     starts_until: Annotated[datetime | None, Query()] = None,
 ) -> list[EventResponse]:
@@ -46,7 +45,6 @@ def list_events(
         participation_mode=participation_mode,
         is_free=is_free,
         registration_required=registration_required,
-        has_qr=has_qr,
         starts_from=starts_from,
         starts_until=starts_until,
         status="published",

@@ -17,7 +17,6 @@ class EventFilterParams(BaseModel):
     participation_mode: ParticipationMode | None = None
     is_free: bool | None = None
     registration_required: bool | None = None
-    has_qr: bool | None = None
     starts_from: datetime | None = None
     starts_until: datetime | None = None
     status: EventStatus | None = None
@@ -39,14 +38,12 @@ class EventBase(BaseModel):
     venue_id: str | None = None
     category_id: str | None = None
     participation_mode: ParticipationMode = "physical"
-    organizer_name: str | None = None
     faculty_id: str | None = None
     department_id: str | None = None
     registration_required: bool = False
     registration_url: str | None = None
     registration_deadline: datetime | None = None
     max_participants: int | None = Field(default=None, gt=0)
-    qr_code_value: str | None = None
     is_free: bool = True
 
     @field_validator("title")
@@ -54,9 +51,7 @@ class EventBase(BaseModel):
     def clean_title(cls, value: str) -> str:
         return value.strip()
 
-    @field_validator(
-        "description", "organizer_name", "registration_url", "qr_code_value"
-    )
+    @field_validator("description", "registration_url")
     @classmethod
     def clean_optional_text(cls, value: str | None) -> str | None:
         if value is None:
@@ -94,20 +89,16 @@ class EventUpdateRequest(BaseModel):
     venue_id: str | None = None
     category_id: str | None = None
     participation_mode: ParticipationMode | None = None
-    organizer_name: str | None = None
     faculty_id: str | None = None
     department_id: str | None = None
     registration_required: bool | None = None
     registration_url: str | None = None
     registration_deadline: datetime | None = None
     max_participants: int | None = Field(default=None, gt=0)
-    qr_code_value: str | None = None
     is_free: bool | None = None
     status: EventStatus | None = None
 
-    @field_validator(
-        "title", "description", "organizer_name", "registration_url", "qr_code_value"
-    )
+    @field_validator("title", "description", "registration_url")
     @classmethod
     def clean_optional_text(cls, value: str | None) -> str | None:
         if value is None:
@@ -143,6 +134,22 @@ class SponsorCreateRequest(BaseModel):
     website_url: str | None = None
 
     @field_validator("name", "logo_url", "website_url")
+    @classmethod
+    def clean_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        return value or None
+
+
+class SponsorLogoUploadRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    file_name: str = Field(min_length=1, max_length=255)
+    content_type: str = Field(default="application/octet-stream", min_length=1)
+    content_base64: str = Field(min_length=1)
+    website_url: str | None = None
+
+    @field_validator("name", "file_name", "content_type", "content_base64", "website_url")
     @classmethod
     def clean_text(cls, value: str | None) -> str | None:
         if value is None:
@@ -246,7 +253,6 @@ class EventResponse(BaseModel):
     category_id: str | None = None
     category_name: str | None = None
     participation_mode: ParticipationMode = "physical"
-    organizer_name: str
     faculty_id: str | None
     faculty_name: str | None = None
     department_id: str | None
@@ -255,11 +261,10 @@ class EventResponse(BaseModel):
     registration_url: str | None = None
     registration_deadline: datetime | None = None
     max_participants: int | None
-    qr_code_value: str | None = None
     is_free: bool = True
     status: EventStatus = "draft"
     creator_id: str
-    creator_name: str
+    creator_full_name: str
     approved_by: str | None = None
     approved_at: datetime | None = None
     rejection_reason: str | None = None

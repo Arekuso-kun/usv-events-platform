@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import base64
+import binascii
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from ..schemas import (
     EventResponse,
     EventSponsorLinkRequest,
     SponsorCreateRequest,
+    SponsorLogoUploadRequest,
     SponsorResponse,
     UserResponse,
 )
@@ -31,6 +34,20 @@ def create_sponsor(
     current_user: Annotated[UserResponse, Depends(get_current_user)],
 ) -> SponsorResponse:
     return events_service.create_sponsor(payload, current_user)
+
+
+@router.post("/sponsors/upload-logo", response_model=SponsorResponse, status_code=201)
+def create_sponsor_with_logo(
+    payload: SponsorLogoUploadRequest,
+    events_service: Annotated[EventsService, Depends(get_events_service)],
+    current_user: Annotated[UserResponse, Depends(get_current_user)],
+) -> SponsorResponse:
+    try:
+        content = base64.b64decode(payload.content_base64, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="Fisier invalid.") from exc
+
+    return events_service.create_sponsor_with_logo_file(payload, content, current_user)
 
 
 @router.post("/events/{event_id}/sponsors", response_model=EventResponse, status_code=201)

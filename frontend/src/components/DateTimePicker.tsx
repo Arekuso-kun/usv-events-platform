@@ -1,6 +1,8 @@
 import { CalendarDays, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "./ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Select } from "./ui/select";
 
 const monthFormatter = new Intl.DateTimeFormat("ro-RO", {
   month: "long",
@@ -69,20 +71,21 @@ export function DateTimePicker(props: {
   }
 
   return (
-    <div className="relative">
-      <Button
-        type="button"
-        variant="outline"
-        className={[
-          "h-11 w-full justify-start gap-2 px-3 text-left font-normal",
-          date ? "text-[#192041]" : "text-[#667085]",
-        ].join(" ")}
-        aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
-      >
-        <CalendarDays className="size-4 text-[#254591]" />
-        <span className="truncate">{label}</span>
-      </Button>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className={[
+            "h-11 w-full justify-start gap-2 px-3 text-left font-normal",
+            date ? "text-[#192041]" : "text-[#667085]",
+          ].join(" ")}
+          aria-expanded={open}
+        >
+          <CalendarDays className="size-4 text-[#254591]" />
+          <span className="truncate">{label}</span>
+        </Button>
+      </PopoverTrigger>
 
       {props.required && (
         <input
@@ -95,8 +98,7 @@ export function DateTimePicker(props: {
         />
       )}
 
-      {open && (
-        <div className="absolute left-0 top-[calc(100%+0.5rem)] z-30 w-[min(22rem,calc(100vw-3rem))] rounded-md border border-[#d7dfeb] bg-white p-3 text-[#192041] shadow-xl">
+      <PopoverContent className="w-[min(22rem,calc(100vw-3rem))] p-3">
           <div className="mb-3 flex items-center justify-between gap-2">
             <Button
               type="button"
@@ -132,9 +134,10 @@ export function DateTimePicker(props: {
               const value = toDateInputValue(day.date);
               const selected = value === date;
               return (
-                <button
+                <Button
                   type="button"
                   key={value}
+                  variant="ghost"
                   className={[
                     "grid h-9 place-items-center rounded-md text-sm transition-colors",
                     day.inMonth ? "text-[#192041]" : "text-[#b0b7c3]",
@@ -145,7 +148,7 @@ export function DateTimePicker(props: {
                   onClick={() => selectDay(day.date)}
                 >
                   {day.date.getDate()}
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -179,9 +182,8 @@ export function DateTimePicker(props: {
               Gata
             </Button>
           </div>
-        </div>
-      )}
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -194,17 +196,12 @@ function TimeSelect(props: {
   return (
     <label className="grid gap-1 text-xs font-medium text-[#667085]">
       {props.label}
-      <select
-        className="h-10 w-full appearance-none rounded-md border border-[#d7dfeb] bg-white px-3 text-sm text-[#192041] outline-none transition-colors focus:border-[#254591] focus:ring-2 focus:ring-[#254591]/20"
+      <Select
         value={props.value}
-        onChange={(event) => props.onChange(event.target.value)}
-      >
-        {props.options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
+        placeholder={props.label}
+        options={props.options.map((option) => ({ value: option, label: option }))}
+        onValueChange={props.onChange}
+      />
     </label>
   );
 }

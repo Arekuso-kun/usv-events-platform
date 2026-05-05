@@ -32,6 +32,7 @@ from .events import (
     MaterialUploadRequest,
     RegistrationResponse,
     SponsorCreateRequest,
+    SponsorLogoUploadRequest,
     SponsorResponse,
 )
 
@@ -61,6 +62,7 @@ __all__ = [
     "RegistrationResponse",
     "RegistrationStatus",
     "SponsorCreateRequest",
+    "SponsorLogoUploadRequest",
     "SponsorResponse",
     "TokenResponse",
     "UserResponse",

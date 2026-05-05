@@ -29,6 +29,8 @@ import {
   CardTitle,
 } from "../components/ui/card";
 import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Textarea } from "../components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -119,7 +121,7 @@ export function EventsPage(props: EventsPageProps) {
                   <TableCell>{formatDateTime(event.starts_at)}</TableCell>
                   <TableCell>{event.venue_name || "Locatie nesetata"}</TableCell>
                   <TableCell>{event.category_name || "Fara categorie"}</TableCell>
-                  <TableCell>{event.organizer_name}</TableCell>
+                  <TableCell>{event.creator_full_name}</TableCell>
                   <TableCell>
                     <StatusBadge status={event.status} />
                   </TableCell>
@@ -216,7 +218,7 @@ export function EventDetailPage(props: EventDetailPageProps) {
               value={`${formatDateTime(event.starts_at)} - ${formatDateTime(event.ends_at)}`}
             />
             <DetailItem label="Locatie" value={event.venue_name || "-"} />
-            <DetailItem label="Organizator" value={event.organizer_name} />
+            <DetailItem label="Organizator" value={event.creator_full_name} />
             <DetailItem label="Participare" value={event.participation_mode} />
             <DetailItem label="Categorie" value={event.category_name || "-"} />
             <DetailItem label="Facultate" value={event.faculty_name || "-"} />
@@ -282,8 +284,7 @@ export function EventDetailPage(props: EventDetailPageProps) {
                   label: value,
                 }))}
               />
-              <textarea
-                className="min-h-24 rounded-md border border-[#d7dfeb] bg-white px-3 py-2 text-sm text-[#192041] placeholder:text-[#667085] focus-visible:border-[#254591] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#254591]/20"
+              <Textarea
                 value={props.feedbackForm.comment}
                 onChange={(formEvent) =>
                   props.setFeedbackForm((current) => ({
@@ -331,89 +332,111 @@ function EventFilters(props: EventsPageProps) {
       <CardContent>
         <div className="grid gap-4">
           <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
-            <Input
-              value={props.filters.q}
-              onChange={(event) => props.setFilter("q", event.target.value)}
-              placeholder="Cauta in titlu sau descriere"
-            />
-            <Input
-              value={props.filters.organizer}
-              onChange={(event) => props.setFilter("organizer", event.target.value)}
-              placeholder="Organizator"
-            />
+            <FilterField label="Cautare">
+              <Input
+                value={props.filters.q}
+                onChange={(event) => props.setFilter("q", event.target.value)}
+                placeholder="Cauta in titlu sau descriere"
+              />
+            </FilterField>
+            <FilterField label="Organizator">
+              <Input
+                value={props.filters.organizer}
+                onChange={(event) => props.setFilter("organizer", event.target.value)}
+                placeholder="Organizator"
+              />
+            </FilterField>
           </div>
 
-          <FilterGroup title="Criterii">
-            <LookupFilter
-              value={props.filters.faculty_id}
-              items={props.faculties}
-              placeholder="Facultate"
-              onChange={(value) => props.setFilter("faculty_id", value)}
-            />
-            <LookupFilter
-              value={props.filters.department_id}
-              items={props.departments}
-              placeholder="Departament"
-              onChange={(value) => props.setFilter("department_id", value)}
-            />
-            <LookupFilter
-              value={props.filters.category_id}
-              items={props.categories}
-              placeholder="Categorie"
-              onChange={(value) => props.setFilter("category_id", value)}
-            />
-            <LookupFilter
-              value={props.filters.venue_id}
-              items={props.venues}
-              placeholder="Locatie"
-              onChange={(value) => props.setFilter("venue_id", value)}
-            />
-          </FilterGroup>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <FilterField label="Facultate">
+              <LookupFilter
+                value={props.filters.faculty_id}
+                items={props.faculties}
+                placeholder="Facultate"
+                onChange={(value) => props.setFilter("faculty_id", value)}
+              />
+            </FilterField>
+            <FilterField label="Departament">
+              <LookupFilter
+                value={props.filters.department_id}
+                items={props.departments}
+                placeholder="Departament"
+                onChange={(value) => props.setFilter("department_id", value)}
+              />
+            </FilterField>
+            <FilterField label="Categorie">
+              <LookupFilter
+                value={props.filters.category_id}
+                items={props.categories}
+                placeholder="Categorie"
+                onChange={(value) => props.setFilter("category_id", value)}
+              />
+            </FilterField>
+            <FilterField label="Locatie">
+              <LookupFilter
+                value={props.filters.venue_id}
+                items={props.venues}
+                placeholder="Locatie"
+                onChange={(value) => props.setFilter("venue_id", value)}
+              />
+            </FilterField>
+          </div>
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
-            <FilterGroup title="Participare">
-              <SelectField
-                value={props.filters.participation_mode}
-                placeholder="Participare"
-                onChange={(value) => props.setFilter("participation_mode", value)}
-                options={[
-                  { value: "physical", label: "Fizic" },
-                  { value: "online", label: "Online" },
-                  { value: "hybrid", label: "Hibrid" },
-                ]}
-              />
-              <SelectField
-                value={props.filters.is_free}
-                placeholder="Intrare"
-                onChange={(value) => props.setFilter("is_free", value)}
-                options={[
-                  { value: "true", label: "Libera" },
-                  { value: "false", label: "Cu plata" },
-                ]}
-              />
-              <SelectField
-                value={props.filters.registration_required}
-                placeholder="Inscriere"
-                onChange={(value) => props.setFilter("registration_required", value)}
-                options={[
-                  { value: "true", label: "Necesara" },
-                  { value: "false", label: "Fara inscriere" },
-                ]}
-              />
-            </FilterGroup>
+            <div className="grid gap-3 md:grid-cols-3">
+              <FilterField label="Participare">
+                <SelectField
+                  value={props.filters.participation_mode}
+                  placeholder="Participare"
+                  onChange={(value) => props.setFilter("participation_mode", value)}
+                  options={[
+                    { value: "physical", label: "Fizic" },
+                    { value: "online", label: "Online" },
+                    { value: "hybrid", label: "Hibrid" },
+                  ]}
+                />
+              </FilterField>
+              <FilterField label="Intrare">
+                <SelectField
+                  value={props.filters.is_free}
+                  placeholder="Intrare"
+                  onChange={(value) => props.setFilter("is_free", value)}
+                  options={[
+                    { value: "true", label: "Libera" },
+                    { value: "false", label: "Cu plata" },
+                  ]}
+                />
+              </FilterField>
+              <FilterField label="Inscriere">
+                <SelectField
+                  value={props.filters.registration_required}
+                  placeholder="Inscriere"
+                  onChange={(value) => props.setFilter("registration_required", value)}
+                  options={[
+                    { value: "true", label: "Necesara" },
+                    { value: "false", label: "Fara inscriere" },
+                  ]}
+                />
+              </FilterField>
+            </div>
 
-            <FilterGroup title="Perioada" columns="sm:grid-cols-2">
-              <DatePicker
-                value={props.filters.starts_from}
-                placeholder="De la"
-                onChange={(value) => props.setFilter("starts_from", value)}
-              />
-              <DatePicker
-                value={props.filters.starts_until}
-                placeholder="Pana la"
-                onChange={(value) => props.setFilter("starts_until", value)}
-              />
-            </FilterGroup>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FilterField label="De la">
+                <DatePicker
+                  value={props.filters.starts_from}
+                  placeholder="De la"
+                  onChange={(value) => props.setFilter("starts_from", value)}
+                />
+              </FilterField>
+              <FilterField label="Pana la">
+                <DatePicker
+                  value={props.filters.starts_until}
+                  placeholder="Pana la"
+                  onChange={(value) => props.setFilter("starts_until", value)}
+                />
+              </FilterField>
+            </div>
           </div>
         </div>
       </CardContent>
@@ -421,21 +444,11 @@ function EventFilters(props: EventsPageProps) {
   );
 }
 
-function FilterGroup(props: {
-  title: string;
-  children: ReactNode;
-  columns?: string;
-}) {
+function FilterField(props: { label: string; children: ReactNode }) {
   return (
     <div className="grid gap-2">
-      <span className="text-xs font-semibold uppercase text-[#667085]">
-        {props.title}
-      </span>
-      <div
-        className={`grid gap-3 ${props.columns || "md:grid-cols-2 xl:grid-cols-4"}`}
-      >
-        {props.children}
-      </div>
+      <Label>{props.label}</Label>
+      {props.children}
     </div>
   );
 }

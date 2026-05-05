@@ -18,7 +18,6 @@ export const emptyFilters: FilterState = {
   participation_mode: "",
   is_free: "",
   registration_required: "",
-  has_qr: "",
   starts_from: "",
   starts_until: "",
 };
@@ -31,13 +30,11 @@ export const emptyEventForm: EventFormState = {
   venue_id: "",
   category_id: "",
   participation_mode: "physical",
-  organizer_name: "",
   faculty_id: "",
   department_id: "",
   registration_required: false,
   registration_url: "",
   max_participants: "",
-  qr_code_value: "",
   is_free: true,
 };
 
@@ -52,17 +49,14 @@ export const emptyMaterialForm: MaterialFormState = {
 
 export const emptySponsorForm: SponsorFormState = {
   name: "",
-  logo_url: "",
+  logo_file: null,
   website_url: "",
 };
 
 export const emptyVenueForm: VenueFormState = {
-  name: "",
   address: "",
   building: "",
   room: "",
-  city: "",
-  maps_url: "",
 };
 
 export function eventFormPayload(form: EventFormState) {
@@ -74,13 +68,11 @@ export function eventFormPayload(form: EventFormState) {
     venue_id: form.venue_id || null,
     category_id: form.category_id || null,
     participation_mode: form.participation_mode,
-    organizer_name: form.organizer_name || null,
     faculty_id: form.faculty_id || null,
     department_id: form.department_id || null,
     registration_required: form.registration_required,
     registration_url: form.registration_url || null,
     max_participants: form.max_participants ? Number(form.max_participants) : null,
-    qr_code_value: form.qr_code_value || null,
     is_free: form.is_free,
   };
 }
@@ -94,13 +86,11 @@ export function eventToForm(event: EventItem): EventFormState {
     venue_id: event.venue_id || "",
     category_id: event.category_id || "",
     participation_mode: event.participation_mode,
-    organizer_name: event.organizer_name || "",
     faculty_id: event.faculty_id || "",
     department_id: event.department_id || "",
     registration_required: event.registration_required,
     registration_url: event.registration_url || "",
     max_participants: event.max_participants ? String(event.max_participants) : "",
-    qr_code_value: event.qr_code_value || "",
     is_free: event.is_free,
   };
 }

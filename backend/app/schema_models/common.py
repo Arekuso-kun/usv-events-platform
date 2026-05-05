@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 UserRole = Literal["student", "organizer", "admin"]
 ParticipationMode = Literal["physical", "online", "hybrid"]
@@ -36,17 +36,20 @@ class LookupResponse(BaseModel):
 
 
 class VenueCreateRequest(BaseModel):
-    name: str = Field(min_length=1, max_length=255)
     address: str | None = None
     building: str | None = None
     room: str | None = None
-    city: str | None = None
-    maps_url: str | None = None
 
-    @field_validator("name", "address", "building", "room", "city", "maps_url")
+    @field_validator("address", "building", "room")
     @classmethod
     def clean_text(cls, value: str | None) -> str | None:
         if value is None:
             return None
         value = value.strip()
         return value or None
+
+    @model_validator(mode="after")
+    def require_location_details(self) -> "VenueCreateRequest":
+        if not (self.address or self.building or self.room):
+            raise ValueError("Completeaza corpul, sala sau adresa locatiei.")
+        return self

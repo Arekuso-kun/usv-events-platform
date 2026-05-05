@@ -70,14 +70,16 @@ create table if not exists public.event_categories (
 
 create table if not exists public.venues (
     id uuid primary key default gen_random_uuid(),
-    name text not null unique,
     address text null,
     building text null,
     room text null,
-    city text null,
-    maps_url text null,
     created_at timestamptz not null default now(),
-    updated_at timestamptz not null default now()
+    updated_at timestamptz not null default now(),
+    constraint venues_location_present_chk check (
+        nullif(address, '') is not null
+        or nullif(building, '') is not null
+        or nullif(room, '') is not null
+    )
 );
 
 create table if not exists public.events (
@@ -89,18 +91,15 @@ create table if not exists public.events (
     venue_id uuid null references public.venues(id) on delete set null,
     category_id uuid null references public.event_categories(id) on delete set null,
     participation_mode public.participation_mode not null default 'physical',
-    organizer_name text not null,
     faculty_id uuid null references public.faculties(id) on delete set null,
     department_id uuid null references public.departments(id) on delete set null,
     registration_required boolean not null default false,
     registration_url text null,
     registration_deadline timestamptz null,
     max_participants integer null check (max_participants is null or max_participants > 0),
-    qr_code_value text null,
     is_free boolean not null default true,
     status public.event_status not null default 'draft',
     creator_id uuid not null references auth.users(id) on delete restrict,
-    creator_name text not null,
     approved_by uuid null references auth.users(id) on delete set null,
     approved_at timestamptz null,
     rejection_reason text null,

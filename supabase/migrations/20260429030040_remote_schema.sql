@@ -264,18 +264,15 @@ CREATE TABLE IF NOT EXISTS "public"."events" (
     "venue_id" "uuid",
     "category_id" "uuid",
     "participation_mode" "public"."participation_mode" DEFAULT 'physical'::"public"."participation_mode" NOT NULL,
-    "organizer_name" "text" NOT NULL,
     "faculty_id" "uuid",
     "department_id" "uuid",
     "registration_required" boolean DEFAULT false NOT NULL,
     "registration_url" "text",
     "registration_deadline" timestamp with time zone,
     "max_participants" integer,
-    "qr_code_value" "text",
     "is_free" boolean DEFAULT true NOT NULL,
     "status" "public"."event_status" DEFAULT 'draft'::"public"."event_status" NOT NULL,
     "creator_id" "uuid" NOT NULL,
-    "creator_name" "text" NOT NULL,
     "approved_by" "uuid",
     "approved_at" timestamp with time zone,
     "rejection_reason" "text",
@@ -345,14 +342,12 @@ ALTER VIEW "public"."v_monthly_event_report" OWNER TO "postgres";
 
 CREATE TABLE IF NOT EXISTS "public"."venues" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "name" "text" NOT NULL,
     "address" "text",
     "building" "text",
     "room" "text",
-    "city" "text",
-    "maps_url" "text",
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "venues_location_present_chk" CHECK (((NULLIF("address", ''::"text") IS NOT NULL) OR (NULLIF("building", ''::"text") IS NOT NULL) OR (NULLIF("room", ''::"text") IS NOT NULL)))
 );
 
 
@@ -456,12 +451,6 @@ ALTER TABLE ONLY "public"."user_profiles"
 
 ALTER TABLE ONLY "public"."user_profiles"
     ADD CONSTRAINT "user_profiles_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."venues"
-    ADD CONSTRAINT "venues_name_key" UNIQUE ("name");
-
 
 
 ALTER TABLE ONLY "public"."venues"
@@ -1321,5 +1310,3 @@ revoke truncate on table "public"."venues" from "service_role";
 revoke update on table "public"."venues" from "service_role";
 
 CREATE TRIGGER on_auth_user_created AFTER INSERT OR UPDATE ON auth.users FOR EACH ROW EXECUTE FUNCTION public.sync_auth_user_profile();
-
-

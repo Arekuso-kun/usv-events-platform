@@ -77,7 +77,6 @@ export interface EventItem {
   category_id: string | null;
   category_name: string | null;
   participation_mode: ParticipationMode;
-  organizer_name: string;
   faculty_id: string | null;
   faculty_name: string | null;
   department_id: string | null;
@@ -86,11 +85,10 @@ export interface EventItem {
   registration_url: string | null;
   registration_deadline: string | null;
   max_participants: number | null;
-  qr_code_value: string | null;
   is_free: boolean;
   status: EventStatus;
   creator_id: string;
-  creator_name: string;
+  creator_full_name: string;
   rejection_reason: string | null;
   created_at: string;
   registration_count: number;
@@ -129,13 +127,11 @@ export interface EventFormState {
   venue_id: string;
   category_id: string;
   participation_mode: ParticipationMode;
-  organizer_name: string;
   faculty_id: string;
   department_id: string;
   registration_required: boolean;
   registration_url: string;
   max_participants: string;
-  qr_code_value: string;
   is_free: boolean;
 }
 
@@ -149,7 +145,6 @@ export interface FilterState {
   participation_mode: string;
   is_free: string;
   registration_required: string;
-  has_qr: string;
   starts_from: string;
   starts_until: string;
 }
@@ -169,17 +164,14 @@ export interface PendingMaterialState extends MaterialFormState {
 
 export interface SponsorFormState {
   name: string;
-  logo_url: string;
+  logo_file: File | null;
   website_url: string;
 }
 
 export interface VenueFormState {
-  name: string;
   address: string;
   building: string;
   room: string;
-  city: string;
-  maps_url: string;
 }
 
 export interface CalendarDay {

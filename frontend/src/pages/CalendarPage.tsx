@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
+import { Select } from "../components/ui/select";
 import type { CalendarDay, EventItem } from "../types";
 
 const MONTHS = [
@@ -192,14 +193,15 @@ function CalendarCell(props: {
 
       <div className="grid gap-1">
         {visibleEvents.map((event) => (
-          <button
+          <Button
             key={event.id}
             type="button"
+            variant="ghost"
             className="truncate rounded-md bg-[rgba(134,193,234,0.22)] px-2 py-1 text-left text-xs font-medium text-[#192041] hover:bg-[rgba(134,193,234,0.34)]"
             onClick={() => props.selectEvent(event.id)}
           >
             {event.title}
-          </button>
+          </Button>
         ))}
         {hiddenCount > 0 && (
           <span className="px-2 text-xs font-medium text-[#667085]">
@@ -220,23 +222,15 @@ function CalendarSelect(props: {
 }) {
   return (
     <div
-      className="select-field shrink-0"
+      className="shrink-0"
       style={{ width: `${props.width}px` }}
     >
-      <select
-        className="appearance-none rounded-md border border-[#d7dfeb] bg-white px-3 pr-9 text-sm font-medium text-[#192041] outline-none focus:border-[#254591] focus:ring-2 focus:ring-[#254591]/20"
-        style={{ height: "40px", minHeight: "40px", width: "100%" }}
+      <Select
         value={props.value}
-        aria-label={props.ariaLabel}
-        onChange={(event) => props.onChange(event.target.value)}
-      >
-        {props.options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-      <span className="select-chevron" aria-hidden="true" />
+        placeholder={props.ariaLabel}
+        options={props.options}
+        onValueChange={props.onChange}
+      />
     </div>
   );
 }

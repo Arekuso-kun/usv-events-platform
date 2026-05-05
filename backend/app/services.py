@@ -29,6 +29,7 @@ from .schemas import (
     OrganizerCreateRequest,
     RegistrationResponse,
     SponsorCreateRequest,
+    SponsorLogoUploadRequest,
     SponsorResponse,
     TokenResponse,
     UserResponse,
@@ -119,6 +120,19 @@ class EventsService(Protocol):
     def create_venue(
         self, payload: VenueCreateRequest, current_user: UserResponse
     ) -> LookupResponse: ...
+
+    def list_sponsors(self) -> list[SponsorResponse]: ...
+
+    def create_sponsor(
+        self, payload: SponsorCreateRequest, current_user: UserResponse
+    ) -> SponsorResponse: ...
+
+    def create_sponsor_with_logo_file(
+        self,
+        payload: SponsorLogoUploadRequest,
+        content: bytes,
+        current_user: UserResponse,
+    ) -> SponsorResponse: ...
 
 
 class AdminService(Protocol):
@@ -249,7 +263,8 @@ class SupabaseService(AuthService, EventsService, AdminService):
 
     def list_events(self, filters: EventFilterParams | None = None) -> list[EventResponse]:
         rows = self._select_all("events", order_by="starts_at")
-        filtered_rows = self._filter_event_rows(rows, filters)
+        creator_full_names = self._profile_name_map(self._row_values(rows, "creator_id"))
+        filtered_rows = self._filter_event_rows(rows, filters, creator_full_names)
         return self._serialize_events(filtered_rows)
 
     def list_managed_events(self, current_user: UserResponse) -> list[EventResponse]:
@@ -278,9 +293,7 @@ class SupabaseService(AuthService, EventsService, AdminService):
             insert_payload["status"] = "pending_approval"
         insert_payload.update(
             {
-                "organizer_name": payload.organizer_name or current_user.full_name,
                 "creator_id": current_user.id,
-                "creator_name": current_user.full_name,
             }
         )
 
@@ -636,6 +649,51 @@ class SupabaseService(AuthService, EventsService, AdminService):
         )
         return self._serialize_sponsor(self._first_row(response))
 
+    def create_sponsor_with_logo_file(
+        self,
+        payload: SponsorLogoUploadRequest,
+        content: bytes,
+        current_user: UserResponse,
+    ) -> SponsorResponse:
+        self._require_roles(current_user, {"organizer", "admin"})
+        if not content:
+            raise HTTPException(status_code=400, detail="Fisierul este gol.")
+        if not payload.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="Logo-ul trebuie sa fie imagine.")
+
+        settings = get_settings()
+        safe_name = self._safe_storage_name(payload.file_name)
+        object_path = f"{current_user.id}/{uuid4().hex}-{safe_name}"
+        try:
+            self._client().storage.from_(settings.supabase_sponsor_logos_bucket).upload(
+                path=object_path,
+                file=content,
+                file_options={
+                    "content-type": payload.content_type,
+                    "cache-control": "3600",
+                    "upsert": "false",
+                },
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "Could not upload sponsor logo. "
+                    f"Supabase Storage error: {self._stringify_error(exc)}"
+                ),
+            ) from exc
+
+        return self.create_sponsor(
+            SponsorCreateRequest(
+                name=payload.name,
+                logo_url=self._storage_public_url(
+                    settings.supabase_sponsor_logos_bucket, object_path
+                ),
+                website_url=payload.website_url,
+            ),
+            current_user,
+        )
+
     def link_event_sponsor(
         self,
         event_id: str,
@@ -684,19 +742,23 @@ class SupabaseService(AuthService, EventsService, AdminService):
         return [self._serialize_lookup(row) for row in rows]
 
     def list_venues(self) -> list[LookupResponse]:
-        return [self._serialize_lookup(row) for row in self._select_all("venues")]
+        venues = [self._serialize_venue_lookup(row) for row in self._select_all("venues")]
+        return sorted(venues, key=lambda item: item.name.lower())
 
     def create_venue(
         self, payload: VenueCreateRequest, current_user: UserResponse
     ) -> LookupResponse:
         self._require_roles(current_user, {"organizer", "admin"})
+        existing = self._find_existing_venue(payload)
+        if existing:
+            return self._serialize_venue_lookup(existing)
         response = (
             self._client()
             .table(get_settings().supabase_venues_table)
             .insert(payload.model_dump())
             .execute()
         )
-        return self._serialize_lookup(self._first_row(response))
+        return self._serialize_venue_lookup(self._first_row(response))
 
     def list_categories(self) -> list[LookupResponse]:
         return [
@@ -977,6 +1039,7 @@ class SupabaseService(AuthService, EventsService, AdminService):
         category_ids = self._row_values(rows, "category_id")
         faculty_ids = self._row_values(rows, "faculty_id")
         department_ids = self._row_values(rows, "department_id")
+        creator_full_names = self._profile_name_map(self._row_values(rows, "creator_id"))
         lookup_names = {
             "venues": self._lookup_name_map("venues", venue_ids),
             "event_categories": self._lookup_name_map(
@@ -993,6 +1056,7 @@ class SupabaseService(AuthService, EventsService, AdminService):
                 sponsors=sponsors_by_event.get(str(row["id"]), []),
                 materials=materials_by_event.get(str(row["id"]), []),
                 related=self._event_related_names_from_maps(row, lookup_names),
+                creator_full_name=creator_full_names.get(str(row["creator_id"])),
             )
             for row in rows
         ]
@@ -1005,6 +1069,7 @@ class SupabaseService(AuthService, EventsService, AdminService):
         sponsors: list[SponsorResponse] | None = None,
         materials: list[MaterialResponse] | None = None,
         related: dict[str, str | None] | None = None,
+        creator_full_name: str | None = None,
     ) -> EventResponse:
         event_id = str(row["id"])
         if registration_count is None:
@@ -1012,6 +1077,7 @@ class SupabaseService(AuthService, EventsService, AdminService):
         max_participants = row.get("max_participants")
         is_full = max_participants is not None and registration_count >= int(max_participants)
         related = related or self._event_related_names(row)
+        creator_full_name = creator_full_name or self._lookup_profile_name(row.get("creator_id"))
         starts_at = self._parse_datetime(row["starts_at"])
         ends_at = self._parse_datetime(row["ends_at"]) if row.get("ends_at") else None
         effective_status = self._effective_event_status(
@@ -1031,7 +1097,6 @@ class SupabaseService(AuthService, EventsService, AdminService):
             category_id=self._optional_str(row.get("category_id")),
             category_name=related.get("category_name"),
             participation_mode=row.get("participation_mode") or "physical",
-            organizer_name=str(row["organizer_name"]),
             faculty_id=self._optional_str(row.get("faculty_id")),
             faculty_name=related.get("faculty_name"),
             department_id=self._optional_str(row.get("department_id")),
@@ -1044,11 +1109,10 @@ class SupabaseService(AuthService, EventsService, AdminService):
                 else None
             ),
             max_participants=int(max_participants) if max_participants is not None else None,
-            qr_code_value=row.get("qr_code_value"),
             is_free=bool(row.get("is_free", True)),
             status=effective_status,
             creator_id=str(row["creator_id"]),
-            creator_name=str(row["creator_name"]),
+            creator_full_name=creator_full_name or "Organizator necunoscut",
             approved_by=self._optional_str(row.get("approved_by")),
             approved_at=self._parse_datetime(row["approved_at"]) if row.get("approved_at") else None,
             rejection_reason=row.get("rejection_reason"),
@@ -1151,8 +1215,18 @@ class SupabaseService(AuthService, EventsService, AdminService):
             short_name=row.get("short_name"),
         )
 
+    def _serialize_venue_lookup(self, row: dict[str, Any]) -> LookupResponse:
+        return LookupResponse(
+            id=str(row["id"]),
+            name=self._venue_display_name(row),
+            short_name=None,
+        )
+
     def _filter_event_rows(
-        self, rows: list[dict[str, Any]], filters: EventFilterParams | None
+        self,
+        rows: list[dict[str, Any]],
+        filters: EventFilterParams | None,
+        creator_full_names: dict[str, str] | None = None,
     ) -> list[dict[str, Any]]:
         if filters is None:
             return rows
@@ -1177,13 +1251,8 @@ class SupabaseService(AuthService, EventsService, AdminService):
                 and bool(row.get("registration_required")) != filters.registration_required
             ):
                 return False
-            if filters.has_qr is not None:
-                has_qr = bool(row.get("qr_code_value"))
-                if has_qr != filters.has_qr:
-                    return False
-            if filters.organizer and filters.organizer.lower() not in str(
-                row.get("organizer_name") or ""
-            ).lower():
+            creator_full_name = (creator_full_names or {}).get(str(row.get("creator_id")), "")
+            if filters.organizer and filters.organizer.lower() not in creator_full_name.lower():
                 return False
             starts_at = self._parse_datetime(row["starts_at"])
             if filters.starts_from and starts_at < filters.starts_from:
@@ -1242,6 +1311,16 @@ class SupabaseService(AuthService, EventsService, AdminService):
         }
 
     def _lookup_name_map(self, table_key: str, row_ids: list[str]) -> dict[str, str]:
+        if table_key == "venues":
+            return {
+                str(row["id"]): self._venue_display_name(row)
+                for row in self._select_rows(
+                    table_key,
+                    column="id",
+                    values=row_ids,
+                    columns="id,address,building,room",
+                )
+            }
         return {
             str(row["id"]): str(row["name"])
             for row in self._select_rows(
@@ -1249,6 +1328,20 @@ class SupabaseService(AuthService, EventsService, AdminService):
             )
             if row.get("name") is not None
         }
+
+    def _profile_name_map(self, user_ids: list[str]) -> dict[str, str]:
+        return {
+            str(row["id"]): str(row["full_name"])
+            for row in self._select_rows(
+                "user_profiles", column="id", values=user_ids, columns="id,full_name"
+            )
+            if row.get("full_name") is not None
+        }
+
+    def _lookup_profile_name(self, user_id: Any) -> str | None:
+        if user_id is None:
+            return None
+        return self._profile_name_map([str(user_id)]).get(str(user_id))
 
     @staticmethod
     def _row_values(rows: list[dict[str, Any]], column: str) -> list[str]:
@@ -1284,7 +1377,45 @@ class SupabaseService(AuthService, EventsService, AdminService):
         if row_id is None:
             return None
         row = self._get_row(table_key, str(row_id), missing_is_none=True)
+        if table_key == "venues":
+            return self._venue_display_name(row) if row else None
         return str(row["name"]) if row and row.get("name") is not None else None
+
+    def _find_existing_venue(
+        self, payload: VenueCreateRequest
+    ) -> dict[str, Any] | None:
+        wanted = self._venue_key(payload.model_dump())
+        for row in self._select_all("venues"):
+            if self._venue_key(row) == wanted:
+                return row
+        return None
+
+    @staticmethod
+    def _venue_display_name(row: dict[str, Any]) -> str:
+        building = (row.get("building") or "").strip()
+        room = (row.get("room") or "").strip()
+        address = (row.get("address") or "").strip()
+
+        parts: list[str] = []
+        if building:
+            parts.append(building)
+        if room:
+            parts.append(f"Sala {room}")
+        if address:
+            parts.append(address)
+        return ", ".join(parts) or "Locatie nespecificata"
+
+    @classmethod
+    def _venue_key(cls, row: dict[str, Any]) -> tuple[str, str, str]:
+        return (
+            cls._normalize_location_value(row.get("building")),
+            cls._normalize_location_value(row.get("room")),
+            cls._normalize_location_value(row.get("address")),
+        )
+
+    @staticmethod
+    def _normalize_location_value(value: Any) -> str:
+        return re.sub(r"\s+", " ", str(value or "").strip()).lower()
 
     def _get_event_or_404(self, event_id: str) -> dict[str, Any]:
         row = self._get_row("events", event_id, missing_is_none=True)

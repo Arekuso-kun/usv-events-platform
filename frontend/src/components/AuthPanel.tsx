@@ -36,20 +36,22 @@ export function AuthPanel(props: AuthPanelProps) {
   return (
     <section className="grid gap-3 border-t border-[#d7dfeb] pt-4">
       <div className="grid grid-cols-2 rounded-md bg-[rgba(39,46,83,0.08)] p-1">
-        <button
+        <Button
+          variant="ghost"
           className={segmentButtonClass(props.authMode === "login")}
           onClick={() => props.setAuthMode("login")}
           type="button"
         >
           Login
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="ghost"
           className={segmentButtonClass(props.authMode === "register")}
           onClick={() => props.setAuthMode("register")}
           type="button"
         >
           Register
-        </button>
+        </Button>
       </div>
       <form onSubmit={props.submitAuth} className="grid gap-2">
         {props.authMode === "register" && (
@@ -99,7 +101,7 @@ export function AuthPanel(props: AuthPanelProps) {
 
 function segmentButtonClass(active: boolean): string {
   return [
-    "rounded px-3 py-2 text-sm font-medium transition-colors",
+    "h-9 rounded px-3 py-2 text-sm font-medium transition-colors hover:bg-white",
     active
       ? "bg-white text-[#192041] shadow-sm"
       : "text-[#667085] hover:text-[#192041]",

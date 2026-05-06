@@ -59,7 +59,7 @@ interface EventDetailPageProps {
   events: EventItem[];
   user: User | null;
   registerForEvent: (id: string) => Promise<void>;
-  submitFeedback: (event: FormEvent) => void;
+  submitFeedback: (event: FormEvent, eventId: string) => void;
   feedbackForm: { rating: string; comment: string };
   setFeedbackForm: Dispatch<SetStateAction<{ rating: string; comment: string }>>;
 }
@@ -269,7 +269,10 @@ export function EventDetailPage(props: EventDetailPageProps) {
             <CardTitle>Feedback</CardTitle>
           </CardHeader>
           <CardContent>
-            <form className="grid gap-3" onSubmit={props.submitFeedback}>
+            <form
+              className="grid gap-3"
+              onSubmit={(formEvent) => props.submitFeedback(formEvent, event.id)}
+            >
               <SelectField
                 value={props.feedbackForm.rating}
                 placeholder="Rating"

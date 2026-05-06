@@ -7,7 +7,7 @@ import {
 } from "react";
 import { apiRequest, getErrorMessage } from "../api/client";
 import { emptyFilters } from "../state/forms";
-import type { EventItem, FilterState } from "../types";
+import type { EventItem, FilterState, Registration } from "../types";
 import { dateFilterToIso } from "../utils/date";
 
 interface UseEventsOptions {
@@ -22,6 +22,9 @@ export function useEvents(options: UseEventsOptions) {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [filters, setFilters] = useState<FilterState>(emptyFilters);
   const [feedbackForm, setFeedbackForm] = useState({ rating: "5", comment: "" });
+  const [myRegistrations, setMyRegistrations] = useState<
+    Record<string, Registration | null>
+  >({});
 
   const request = useCallback(
     <T,>(method: "get" | "post" | "patch" | "delete", url: string, data?: unknown) =>
@@ -64,11 +67,32 @@ export function useEvents(options: UseEventsOptions) {
       setEvents((current) =>
         current.map((event) => (event.id === eventId ? updated : event)),
       );
+      await loadMyRegistration(eventId);
       setNotice("Inscriere inregistrata.");
     } catch (requestError) {
       setError(getErrorMessage(requestError));
     }
   }
+
+  const loadMyRegistration = useCallback(
+    async (eventId: string) => {
+      if (!token) {
+        setMyRegistrations((current) => ({ ...current, [eventId]: null }));
+        return;
+      }
+
+      try {
+        const registration = await request<Registration | null>(
+          "get",
+          `/events/${eventId}/registration/me`,
+        );
+        setMyRegistrations((current) => ({ ...current, [eventId]: registration }));
+      } catch (requestError) {
+        setError(getErrorMessage(requestError));
+      }
+    },
+    [request, setError, token],
+  );
 
   async function submitFeedback(event: FormEvent, eventId: string) {
     event.preventDefault();
@@ -88,9 +112,11 @@ export function useEvents(options: UseEventsOptions) {
     events,
     filters,
     feedbackForm,
+    myRegistrations,
     setEvents,
     setFeedbackForm,
     loadEvents,
+    loadMyRegistration,
     setFilter,
     registerForEvent,
     submitFeedback,

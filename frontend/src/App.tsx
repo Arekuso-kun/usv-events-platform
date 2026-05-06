@@ -39,8 +39,10 @@ export default function App() {
     events,
     filters,
     feedbackForm,
+    myRegistrations,
     setFeedbackForm,
     loadEvents,
+    loadMyRegistration,
     setFilter,
     registerForEvent,
     submitFeedback,
@@ -193,6 +195,7 @@ export default function App() {
         eventForm={eventForm}
         materialForm={materialForm}
         feedbackForm={feedbackForm}
+        myRegistrations={myRegistrations}
         sponsorForm={sponsorForm}
         venueForm={venueForm}
         sponsorToLink={sponsorToLink}
@@ -202,10 +205,10 @@ export default function App() {
         setAuthForm={setAuthForm}
         submitAuth={submitAuth}
         startGoogleLogin={startGoogleLogin}
-        logout={logout}
         setFilter={setFilter}
         setSelectedEventId={setSelectedEventId}
         registerForEvent={registerForEvent}
+        loadMyRegistration={loadMyRegistration}
         submitFeedback={submitFeedback}
         setFeedbackForm={setFeedbackForm}
         deleteManagedEvent={deleteManagedEvent}

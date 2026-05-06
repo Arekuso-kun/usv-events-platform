@@ -80,6 +80,10 @@ class EventsService(Protocol):
         self, event_id: str, current_user: UserResponse
     ) -> EventResponse: ...
 
+    def get_my_registration(
+        self, event_id: str, current_user: UserResponse
+    ) -> RegistrationResponse | None: ...
+
     def list_registrations(
         self, event_id: str, current_user: UserResponse
     ) -> list[RegistrationResponse]: ...
@@ -413,6 +417,24 @@ class SupabaseService(AuthService, EventsService, AdminService):
             ) from exc
 
         return self._serialize_event(self._get_event_or_404(event_id))
+
+    def get_my_registration(
+        self, event_id: str, current_user: UserResponse
+    ) -> RegistrationResponse | None:
+        self._get_event_or_404(event_id)
+        response = (
+            self._client()
+            .table(get_settings().supabase_event_registrations_table)
+            .select("*")
+            .eq("event_id", event_id)
+            .eq("user_id", current_user.id)
+            .neq("status", "cancelled")
+            .limit(1)
+            .execute()
+        )
+        if not response.data:
+            return None
+        return self._serialize_registration(response.data[0])
 
     def list_registrations(
         self, event_id: str, current_user: UserResponse

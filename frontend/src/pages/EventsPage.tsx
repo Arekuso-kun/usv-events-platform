@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useMemo,
   useState,
   type Dispatch,
@@ -20,6 +21,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "../components/ui/breadcrumb";
+import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -39,7 +41,7 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
-import type { EventItem, FilterState, Lookup, User } from "../types";
+import type { EventItem, FilterState, Lookup, Registration, User } from "../types";
 import { formatDateTime, getGoogleCalendarUrl } from "../utils/date";
 
 const PAGE_SIZE = 8;
@@ -58,6 +60,8 @@ interface EventsPageProps {
 interface EventDetailPageProps {
   events: EventItem[];
   user: User | null;
+  myRegistrations: Record<string, Registration | null>;
+  loadMyRegistration: (eventId: string) => Promise<void>;
   registerForEvent: (id: string) => Promise<void>;
   submitFeedback: (event: FormEvent, eventId: string) => void;
   feedbackForm: { rating: string; comment: string };
@@ -181,7 +185,19 @@ export function EventsPage(props: EventsPageProps) {
 
 export function EventDetailPage(props: EventDetailPageProps) {
   const { eventId } = useParams();
+  const { loadMyRegistration, user } = props;
   const event = props.events.find((item) => item.id === eventId) || null;
+  const currentEventId = event?.id;
+  const userId = user?.id;
+  const myRegistration = event ? props.myRegistrations[event.id] ?? null : null;
+
+  useEffect(() => {
+    if (!currentEventId || !userId) {
+      return;
+    }
+
+    void loadMyRegistration(currentEventId);
+  }, [currentEventId, loadMyRegistration, userId]);
 
   if (!event) {
     return (
@@ -195,6 +211,13 @@ export function EventDetailPage(props: EventDetailPageProps) {
       </div>
     );
   }
+
+  const hasRegistrationLink = Boolean(event.registration_url);
+  const canRegisterInternally =
+    Boolean(props.user) &&
+    event.registration_required &&
+    !hasRegistrationLink &&
+    !myRegistration;
 
   return (
     <div className="grid gap-4">
@@ -230,14 +253,26 @@ export function EventDetailPage(props: EventDetailPageProps) {
 
           <EventQrCode event={event} />
 
+          {props.user && (
+            <InternalRegistrationStatus
+              event={event}
+              registration={myRegistration}
+            />
+          )}
+
           <div className="flex flex-wrap gap-2">
-            {props.user && (
+            {canRegisterInternally && (
               <Button
                 type="button"
                 onClick={() => void props.registerForEvent(event.id)}
                 disabled={event.is_full}
               >
                 Inscriere
+              </Button>
+            )}
+            {event.registration_url && (
+              <Button asChild>
+                <a href={event.registration_url}>Link inscriere</a>
               </Button>
             )}
             <Button asChild variant="secondary">
@@ -252,11 +287,6 @@ export function EventDetailPage(props: EventDetailPageProps) {
                 Google Calendar
               </a>
             </Button>
-            {event.registration_url && (
-              <Button asChild variant="secondary">
-                <a href={event.registration_url}>Link inscriere</a>
-              </Button>
-            )}
           </div>
         </CardContent>
       </Card>
@@ -524,6 +554,53 @@ function EventQrCode({ event }: { event: EventItem }) {
       </div>
     </div>
   );
+}
+
+function InternalRegistrationStatus(props: {
+  event: EventItem;
+  registration: Registration | null;
+}) {
+  if (props.registration) {
+    return (
+      <div className="flex flex-wrap items-center gap-2 rounded-md border border-[#86C1EA] bg-[rgba(134,193,234,0.12)] px-3 py-2 text-sm text-[#192041]">
+        <Badge variant="secondary">
+          {registrationStatusLabel(props.registration.status)}
+        </Badge>
+        <span>
+          Esti inscris intern din {formatDateTime(props.registration.registered_at)}.
+        </span>
+      </div>
+    );
+  }
+
+  if (props.event.registration_url) {
+    return (
+      <p className="rounded-md border border-[#d7dfeb] px-3 py-2 text-sm text-[#667085]">
+        Inscrierea se face prin link extern. Nu ai o inscriere interna pentru acest
+        eveniment.
+      </p>
+    );
+  }
+
+  if (props.event.registration_required) {
+    return (
+      <p className="rounded-md border border-[#d7dfeb] px-3 py-2 text-sm text-[#667085]">
+        Nu esti inscris intern la acest eveniment.
+      </p>
+    );
+  }
+
+  return null;
+}
+
+function registrationStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    registered: "Inscris intern",
+    checked_in: "Check-in efectuat",
+    waitlisted: "Lista de asteptare",
+    cancelled: "Anulat",
+  };
+  return labels[status] || status;
 }
 
 function InlineResourceList({ event }: { event: EventItem }) {

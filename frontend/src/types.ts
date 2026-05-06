@@ -99,10 +99,14 @@ export interface EventItem {
 
 export interface Registration {
   id: string;
+  event_id: string;
+  user_id: string;
   user_name: string | null;
   user_email: string | null;
   status: string;
   registered_at: string;
+  cancelled_at: string | null;
+  checked_in_at: string | null;
 }
 
 export interface EventStats {

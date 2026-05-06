@@ -20,6 +20,15 @@ def register_for_event(
     return events_service.register_for_event(event_id, current_user)
 
 
+@router.get("/registration/me", response_model=RegistrationResponse | None)
+def get_my_event_registration(
+    event_id: str,
+    events_service: Annotated[EventsService, Depends(get_events_service)],
+    current_user: Annotated[UserResponse, Depends(get_current_user)],
+) -> RegistrationResponse | None:
+    return events_service.get_my_registration(event_id, current_user)
+
+
 @router.get("/registrations", response_model=list[RegistrationResponse])
 def list_event_registrations(
     event_id: str,

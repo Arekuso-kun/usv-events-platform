@@ -1,132 +1,49 @@
-import type { Dispatch, FormEvent, SetStateAction } from "react";
 import { LogOut } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import type { AuthMode, User } from "../types";
+import type { User } from "../types";
 
 interface AuthPanelProps {
-  authMode: AuthMode;
-  authForm: { full_name: string; email: string; password: string };
-  loading: boolean;
   user: User | null;
-  setAuthMode: (mode: AuthMode) => void;
-  setAuthForm: Dispatch<
-    SetStateAction<{ full_name: string; email: string; password: string }>
-  >;
-  submitAuth: (event: FormEvent) => void;
-  startGoogleLogin: () => void;
   logout: () => void;
 }
 
 export function AuthPanel(props: AuthPanelProps) {
-  if (props.user) {
-    return (
-      <section className="grid gap-3 border-t border-[#d7dfeb] pt-4">
-        <div className="flex items-center gap-3 rounded-md p-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#254591] text-sm font-semibold text-white">
-            {userInitials(props.user.full_name)}
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <strong className="truncate text-sm text-[#192041]">
-                {props.user.full_name}
-              </strong>
-              <Badge variant="secondary" className="shrink-0 px-2 py-0 text-[10px]">
-                {roleLabel(props.user.role)}
-              </Badge>
-            </div>
-            <span className="block truncate text-xs text-[#667085]">
-              {props.user.email}
-            </span>
-          </div>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          className="h-10 w-full justify-start"
-          onClick={props.logout}
-        >
-          <LogOut />
-          Deconectare
-        </Button>
-      </section>
-    );
+  if (!props.user) {
+    return null;
   }
 
   return (
     <section className="grid gap-3 border-t border-[#d7dfeb] pt-4">
-      <div className="grid grid-cols-2 rounded-md bg-[rgba(39,46,83,0.08)] p-1">
-        <Button
-          variant="ghost"
-          className={segmentButtonClass(props.authMode === "login")}
-          onClick={() => props.setAuthMode("login")}
-          type="button"
-        >
-          Login
-        </Button>
-        <Button
-          variant="ghost"
-          className={segmentButtonClass(props.authMode === "register")}
-          onClick={() => props.setAuthMode("register")}
-          type="button"
-        >
-          Register
-        </Button>
+      <div className="flex items-center gap-3 rounded-md p-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#254591] text-sm font-semibold text-white">
+          {userInitials(props.user.full_name)}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <strong className="truncate text-sm text-[#192041]">
+              {props.user.full_name}
+            </strong>
+            <Badge variant="secondary" className="shrink-0 px-2 py-0 text-[10px]">
+              {roleLabel(props.user.role)}
+            </Badge>
+          </div>
+          <span className="block truncate text-xs text-[#667085]">
+            {props.user.email}
+          </span>
+        </div>
       </div>
-      <form onSubmit={props.submitAuth} className="grid gap-2">
-        {props.authMode === "register" && (
-          <Input
-            value={props.authForm.full_name}
-            onChange={(event) =>
-              props.setAuthForm((current) => ({
-                ...current,
-                full_name: event.target.value,
-              }))
-            }
-            placeholder="Nume complet"
-            required
-          />
-        )}
-        <Input
-          type="email"
-          value={props.authForm.email}
-          onChange={(event) =>
-            props.setAuthForm((current) => ({ ...current, email: event.target.value }))
-          }
-          placeholder="email"
-          required
-        />
-        <Input
-          type="password"
-          value={props.authForm.password}
-          onChange={(event) =>
-            props.setAuthForm((current) => ({
-              ...current,
-              password: event.target.value,
-            }))
-          }
-          placeholder="parola"
-          required
-        />
-        <Button disabled={props.loading}>
-          {props.authMode === "login" ? "Login" : "Creeaza cont"}
-        </Button>
-      </form>
-      <Button type="button" variant="secondary" onClick={props.startGoogleLogin}>
-        Google student
+      <Button
+        type="button"
+        variant="outline"
+        className="h-10 w-full justify-start"
+        onClick={props.logout}
+      >
+        <LogOut />
+        Deconectare
       </Button>
     </section>
   );
-}
-
-function segmentButtonClass(active: boolean): string {
-  return [
-    "h-9 rounded px-3 py-2 text-sm font-medium transition-colors hover:bg-white",
-    active
-      ? "bg-white text-[#192041] shadow-sm"
-      : "text-[#667085] hover:text-[#192041]",
-  ].join(" ");
 }
 
 function userInitials(name: string): string {

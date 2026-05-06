@@ -30,8 +30,6 @@ export interface User {
 export interface OrganizerCreatePayload {
   full_name: string;
   email: string;
-  password: string;
-  role: "organizer" | "admin";
   faculty_id: string | null;
   department_id: string | null;
 }

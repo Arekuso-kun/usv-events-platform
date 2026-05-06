@@ -9,6 +9,7 @@ from fastapi.responses import RedirectResponse
 from ..schemas import (
     GoogleLoginRequest,
     LoginRequest,
+    PasswordUpdateRequest,
     RegisterRequest,
     TokenResponse,
     UserResponse,
@@ -48,6 +49,15 @@ def login(
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> TokenResponse:
     return auth_service.login(payload.email, payload.password)
+
+
+@router.post("/password", response_model=UserResponse)
+def update_password(
+    payload: PasswordUpdateRequest,
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+    current_user: Annotated[UserResponse, Depends(get_current_user)],
+) -> UserResponse:
+    return auth_service.update_password(payload, current_user)
 
 
 @router.post("/google", response_model=TokenResponse)

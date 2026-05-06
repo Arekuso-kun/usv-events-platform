@@ -40,17 +40,29 @@ class RegisterRequest(LoginRequest):
         return value.strip()
 
 
-class OrganizerCreateRequest(RegisterRequest):
-    """Admin-created staff account payload for organizers and admins."""
+class OrganizerCreateRequest(BaseModel):
+    """Admin-created organizer invitation payload."""
 
-    role: UserRole = "organizer"
+    email: str
+    full_name: str = Field(min_length=1, max_length=255)
+    faculty_id: str | None = None
+    department_id: str | None = None
 
-    @field_validator("role")
+    @field_validator("email")
     @classmethod
-    def require_staff_role(cls, value: UserRole) -> UserRole:
-        if value == "student":
-            raise ValueError("organizer accounts must use organizer or admin role")
-        return value
+    def normalize_email(cls, value: str) -> str:
+        return value.strip().lower()
+
+    @field_validator("full_name")
+    @classmethod
+    def clean_full_name(cls, value: str) -> str:
+        return value.strip()
+
+
+class PasswordUpdateRequest(BaseModel):
+    """Password chosen by an invited organizer after accepting the invite."""
+
+    password: str = Field(min_length=8, max_length=128)
 
 
 class UserUpdateRequest(BaseModel):

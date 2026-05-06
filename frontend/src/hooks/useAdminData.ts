@@ -70,7 +70,7 @@ export function useAdminData(options: UseAdminDataOptions) {
     clearMessages();
     try {
       await request<User>("post", "/admin/users/organizers", payload);
-      setNotice("Utilizator organizer creat.");
+      setNotice("Invitatie trimisa catre organizator.");
       await loadAdminData();
       return true;
     } catch (requestError) {
@@ -78,16 +78,6 @@ export function useAdminData(options: UseAdminDataOptions) {
       return false;
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function updateUserRole(userId: string, role: "organizer" | "admin") {
-    try {
-      await request<User>("patch", `/admin/users/${userId}`, { role });
-      setNotice("Rol actualizat.");
-      await loadAdminData();
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
     }
   }
 
@@ -99,6 +89,5 @@ export function useAdminData(options: UseAdminDataOptions) {
     approveEvent,
     rejectEvent,
     createOrganizer,
-    updateUserRole,
   };
 }

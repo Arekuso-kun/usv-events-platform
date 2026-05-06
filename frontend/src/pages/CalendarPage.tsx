@@ -197,10 +197,10 @@ function CalendarCell(props: {
             key={event.id}
             type="button"
             variant="ghost"
-            className="truncate rounded-md bg-[rgba(134,193,234,0.22)] px-2 py-1 text-left text-xs font-medium text-[#192041] hover:bg-[rgba(134,193,234,0.34)]"
+            className="h-auto min-h-9 w-full justify-start whitespace-normal rounded-md bg-[rgba(134,193,234,0.22)] px-2 py-1.5 text-left text-xs font-medium leading-snug text-[#192041] hover:bg-[rgba(134,193,234,0.34)] [&>span]:line-clamp-2 [&>span]:min-w-0"
             onClick={() => props.selectEvent(event.id)}
           >
-            {event.title}
+            <span>{event.title}</span>
           </Button>
         ))}
         {hiddenCount > 0 && (

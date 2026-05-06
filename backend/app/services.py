@@ -27,6 +27,7 @@ from .schemas import (
     MaterialCreateRequest,
     MaterialResponse,
     OrganizerCreateRequest,
+    PasswordUpdateRequest,
     RegistrationResponse,
     SponsorCreateRequest,
     SponsorLogoUploadRequest,
@@ -51,6 +52,10 @@ class AuthService(Protocol):
     def google_sign_in(self, id_token: str) -> TokenResponse: ...
 
     def get_user_from_token(self, access_token: str) -> UserResponse: ...
+
+    def update_password(
+        self, payload: PasswordUpdateRequest, current_user: UserResponse
+    ) -> UserResponse: ...
 
 
 class EventsService(Protocol):
@@ -280,6 +285,22 @@ class SupabaseService(AuthService, EventsService, AdminService):
 
         user = self._extract_user(response)
         return self._serialize_user(user)
+
+    def update_password(
+        self, payload: PasswordUpdateRequest, current_user: UserResponse
+    ) -> UserResponse:
+        try:
+            response = get_supabase_service_client().auth.admin.update_user_by_id(
+                current_user.id,
+                {"password": payload.password},
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Could not update password: {self._stringify_error(exc)}",
+            ) from exc
+
+        return self._serialize_user(self._extract_user(response))
 
     def list_events(
         self, filters: EventFilterParams | None = None
@@ -867,7 +888,7 @@ class SupabaseService(AuthService, EventsService, AdminService):
             self._client()
             .table(get_settings().supabase_user_profiles_table)
             .select("*")
-            .in_("role", ["organizer", "admin"])
+            .eq("role", "organizer")
             .order("full_name")
             .execute()
             .data
@@ -879,14 +900,26 @@ class SupabaseService(AuthService, EventsService, AdminService):
         self, payload: OrganizerCreateRequest, current_user: UserResponse
     ) -> UserResponse:
         self._require_roles(current_user, {"admin"})
-        user = self._create_auth_user(
-            payload.email, payload.password, payload.full_name
-        )
+        try:
+            response = get_supabase_service_client().auth.admin.invite_user_by_email(
+                payload.email,
+                {
+                    "redirect_to": f"{get_settings().frontend_url}/set-password",
+                    "data": {"full_name": payload.full_name},
+                },
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Could not invite organizer: {self._stringify_error(exc)}",
+            ) from exc
+
+        user = self._extract_user(response)
         profile = {
             "id": str(getattr(user, "id")),
             "email": payload.email,
             "full_name": payload.full_name,
-            "role": payload.role,
+            "role": "organizer",
             "faculty_id": payload.faculty_id,
             "department_id": payload.department_id,
             "student_domain_verified": False,

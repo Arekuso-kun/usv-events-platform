@@ -97,12 +97,10 @@ export function useAuth(options: UseAuthOptions) {
     setLoading(true);
     clearMessages();
     try {
-      const url = authMode === "login" ? "/auth/login" : "/auth/register";
-      const payload =
-        authMode === "login"
-          ? { email: authForm.email, password: authForm.password }
-          : authForm;
-      const response = await axios.post<AuthResponse>(`${API_URL}${url}`, payload);
+      const response = await axios.post<AuthResponse>(`${API_URL}/auth/login`, {
+        email: authForm.email,
+        password: authForm.password,
+      });
       localStorage.setItem(TOKEN_KEY, response.data.access_token);
       setToken(response.data.access_token);
       setUser(response.data.user);
@@ -110,6 +108,31 @@ export function useAuth(options: UseAuthOptions) {
       setNotice("Sesiune activa.");
     } catch (requestError) {
       setError(getErrorMessage(requestError));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function setPassword(password: string) {
+    if (!token) {
+      setError("Sesiunea de invitatie lipseste sau a expirat.");
+      return false;
+    }
+
+    setLoading(true);
+    clearMessages();
+    try {
+      const response = await axios.post<User>(
+        `${API_URL}/auth/password`,
+        { password },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setUser(response.data);
+      setNotice("Parola a fost setata.");
+      return true;
+    } catch (requestError) {
+      setError(getErrorMessage(requestError));
+      return false;
     } finally {
       setLoading(false);
     }
@@ -130,6 +153,7 @@ export function useAuth(options: UseAuthOptions) {
     setAuthMode,
     setAuthForm,
     submitAuth,
+    setPassword,
     startGoogleLogin,
     logout,
   };

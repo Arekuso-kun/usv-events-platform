@@ -8,7 +8,7 @@ import {
   type SetStateAction,
 } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { API_URL } from "../api/client";
 import { DatePicker } from "../components/DatePicker";
 import { SelectField } from "../components/SelectField";
@@ -293,12 +293,15 @@ export function EventDetailPage(props: EventDetailPageProps) {
 
       <InlineResourceList event={event} />
 
-      {props.user && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Feedback</CardTitle>
-          </CardHeader>
-          <CardContent>
+      <Card>
+        <CardHeader>
+          <CardTitle>Feedback</CardTitle>
+          <CardDescription>
+            Feedback-ul poate fi trimis doar dupa autentificare.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {props.user ? (
             <form
               className="grid gap-3"
               onSubmit={(formEvent) => props.submitFeedback(formEvent, event.id)}
@@ -329,9 +332,16 @@ export function EventDetailPage(props: EventDetailPageProps) {
               />
               <Button className="w-fit">Trimite</Button>
             </form>
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-[#d7dfeb] px-3 py-3 text-sm text-[#667085]">
+              <span>Autentifica-te pentru a trimite feedback la acest eveniment.</span>
+              <Button asChild variant="outline">
+                <Link to="/login">Autentificare</Link>
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

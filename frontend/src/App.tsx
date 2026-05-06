@@ -22,6 +22,7 @@ export default function App() {
     setAuthMode,
     setAuthForm,
     submitAuth,
+    setPassword,
     startGoogleLogin,
     logout,
   } = useAuth({ setError, setNotice, setLoading, clearMessages });
@@ -55,7 +56,6 @@ export default function App() {
     approveEvent,
     rejectEvent,
     createOrganizer,
-    updateUserRole,
   } = useAdminData({
     token,
     setError,
@@ -178,6 +178,7 @@ export default function App() {
         authMode={authMode}
         authForm={authForm}
         loading={loading}
+        token={token}
         user={user}
         events={events}
         managedEvents={managedEvents}
@@ -204,6 +205,7 @@ export default function App() {
         setAuthMode={setAuthMode}
         setAuthForm={setAuthForm}
         submitAuth={submitAuth}
+        setPassword={setPassword}
         startGoogleLogin={startGoogleLogin}
         setFilter={setFilter}
         setSelectedEventId={setSelectedEventId}
@@ -233,7 +235,6 @@ export default function App() {
         approveEvent={approveEvent}
         rejectEvent={rejectEvent}
         createOrganizer={createOrganizer}
-        updateUserRole={updateUserRole}
         reloadAdmin={() => void loadAdminData()}
       />
     </AppLayout>

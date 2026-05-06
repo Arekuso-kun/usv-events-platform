@@ -53,11 +53,17 @@ const OrganizerPage = lazy(() =>
     default: module.OrganizerPage,
   })),
 );
+const SetPasswordPage = lazy(() =>
+  import("./pages/SetPasswordPage").then((module) => ({
+    default: module.SetPasswordPage,
+  })),
+);
 
 interface AppRoutesProps {
   authMode: AuthMode;
   authForm: { full_name: string; email: string; password: string };
   loading: boolean;
+  token: string;
   user: User | null;
   events: EventItem[];
   managedEvents: EventItem[];
@@ -86,6 +92,7 @@ interface AppRoutesProps {
     SetStateAction<{ full_name: string; email: string; password: string }>
   >;
   submitAuth: (event: FormEvent) => void;
+  setPassword: (password: string) => Promise<boolean>;
   startGoogleLogin: () => void;
   setFilter: (name: keyof FilterState, value: string) => void;
   setSelectedEventId: (eventId: string | null) => void;
@@ -118,7 +125,6 @@ interface AppRoutesProps {
   approveEvent: (eventId: string) => Promise<void>;
   rejectEvent: (eventId: string) => Promise<void>;
   createOrganizer: (payload: OrganizerCreatePayload) => Promise<boolean>;
-  updateUserRole: (userId: string, role: "organizer" | "admin") => Promise<void>;
   reloadAdmin: () => void;
 }
 
@@ -136,10 +142,8 @@ export function AppRoutes(props: AppRoutesProps) {
               <Navigate to="/events" replace />
             ) : (
               <LoginPage
-                authMode={props.authMode}
                 authForm={props.authForm}
                 loading={props.loading}
-                setAuthMode={props.setAuthMode}
                 setAuthForm={props.setAuthForm}
                 submitAuth={props.submitAuth}
                 startGoogleLogin={props.startGoogleLogin}
@@ -159,6 +163,17 @@ export function AppRoutes(props: AppRoutesProps) {
               categories={props.categories}
               setFilter={props.setFilter}
               selectEvent={props.setSelectedEventId}
+            />
+          }
+        />
+        <Route
+          path="/set-password"
+          element={
+            <SetPasswordPage
+              loading={props.loading}
+              token={props.token}
+              user={props.user}
+              setPassword={props.setPassword}
             />
           }
         />
@@ -239,7 +254,6 @@ export function AppRoutes(props: AppRoutesProps) {
               approveEvent={props.approveEvent}
               rejectEvent={props.rejectEvent}
               createOrganizer={props.createOrganizer}
-              updateUserRole={props.updateUserRole}
               reloadAdmin={props.reloadAdmin}
             />
           }

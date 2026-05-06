@@ -72,14 +72,7 @@ export function AppSidebar(props: AppSidebarProps) {
       {props.user ? (
         <div className="mt-4">
           <AuthPanel
-            authMode={props.authMode}
-            authForm={props.authForm}
-            loading={props.loading}
             user={props.user}
-            setAuthMode={props.setAuthMode}
-            setAuthForm={props.setAuthForm}
-            submitAuth={props.submitAuth}
-            startGoogleLogin={props.startGoogleLogin}
             logout={props.logout}
           />
         </div>

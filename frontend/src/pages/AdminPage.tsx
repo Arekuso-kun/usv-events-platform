@@ -1,6 +1,5 @@
-import { CheckCircle2, RefreshCw, ShieldCheck, UserPlus, XCircle } from "lucide-react";
+import { CheckCircle2, Eye, RefreshCw, UserPlus, XCircle } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
-import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -9,6 +8,14 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import {
@@ -26,7 +33,6 @@ import type {
   EventItem,
   Lookup,
   OrganizerCreatePayload,
-  Role,
   User,
 } from "../types";
 import { formatDateTime } from "../utils/date";
@@ -43,15 +49,12 @@ interface AdminPageProps {
   approveEvent: (id: string) => Promise<void>;
   rejectEvent: (id: string) => Promise<void>;
   createOrganizer: (payload: OrganizerCreatePayload) => Promise<boolean>;
-  updateUserRole: (userId: string, role: "organizer" | "admin") => Promise<void>;
   reloadAdmin: () => void;
 }
 
 const emptyOrganizerForm = {
   full_name: "",
   email: "",
-  password: "",
-  role: "organizer" as "organizer" | "admin",
   faculty_id: "",
   department_id: "",
 };
@@ -90,10 +93,6 @@ export function AdminPage(props: AdminPageProps) {
 
   async function submitOrganizer(formEvent: FormEvent) {
     formEvent.preventDefault();
-    if (organizerForm.password.length < 8) {
-      window.alert("Parola initiala trebuie sa aiba cel putin 8 caractere.");
-      return;
-    }
     const created = await props.createOrganizer({
       ...organizerForm,
       faculty_id: organizerForm.faculty_id || null,
@@ -129,7 +128,7 @@ export function AdminPage(props: AdminPageProps) {
         />
       </div>
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(24rem,0.75fr)]">
+      <div className="grid items-start gap-4">
         <PendingEventsCard
           events={props.pendingEvents}
           approveEvent={props.approveEvent}
@@ -144,7 +143,6 @@ export function AdminPage(props: AdminPageProps) {
           loading={props.loading}
           setForm={setOrganizerForm}
           submitOrganizer={submitOrganizer}
-          updateUserRole={props.updateUserRole}
         />
       </div>
 
@@ -155,7 +153,7 @@ export function AdminPage(props: AdminPageProps) {
             Sinteze pentru volum lunar, participare si activitatea organizatorilor.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-5 xl:grid-cols-3">
+        <CardContent className="grid gap-4 xl:grid-cols-4">
           <ReportList
             title="Evenimente pe luna"
             items={eventsByMonth.map((item) => ({
@@ -174,7 +172,7 @@ export function AdminPage(props: AdminPageProps) {
             )}
             empty="Nu exista date despre statusuri."
           />
-          <div className="grid gap-3">
+          <div className="grid content-start gap-3">
             <div>
               <h3 className="text-sm font-semibold text-[#192041]">
                 Organizator selectat
@@ -198,15 +196,15 @@ export function AdminPage(props: AdminPageProps) {
                 {selectedOrganizerCount ?? "-"}
               </strong>
             </div>
-            <ReportList
-              title="Top organizatori"
-              items={eventsByOrganizer.slice(0, 5).map((item) => ({
-                label: item.name,
-                value: item.count,
-              }))}
-              empty="Nu exista organizatori cu evenimente."
-            />
           </div>
+          <ReportList
+            title="Top organizatori"
+            items={eventsByOrganizer.slice(0, 5).map((item) => ({
+              label: item.name,
+              value: item.count,
+            }))}
+            empty="Nu exista organizatori cu evenimente."
+          />
         </CardContent>
       </Card>
     </div>
@@ -219,6 +217,8 @@ function PendingEventsCard(props: {
   rejectEvent: (id: string) => Promise<void>;
   reloadAdmin: () => void;
 }) {
+  const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
+
   return (
     <Card>
       <CardHeader className="flex-row flex-wrap items-center justify-between gap-4">
@@ -258,6 +258,15 @@ function PendingEventsCard(props: {
                     <Button
                       type="button"
                       size="sm"
+                      variant="outline"
+                      onClick={() => setSelectedEvent(event)}
+                    >
+                      <Eye />
+                      Detalii
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
                       onClick={() => void props.approveEvent(event.id)}
                     >
                       <CheckCircle2 />
@@ -285,8 +294,168 @@ function PendingEventsCard(props: {
             )}
           </TableBody>
         </Table>
+
+        <PendingEventDetailsDialog
+          event={selectedEvent}
+          onClose={() => setSelectedEvent(null)}
+          onApprove={async (eventId) => {
+            await props.approveEvent(eventId);
+            setSelectedEvent(null);
+          }}
+          onReject={async (eventId) => {
+            await props.rejectEvent(eventId);
+            setSelectedEvent(null);
+          }}
+        />
       </CardContent>
     </Card>
+  );
+}
+
+function PendingEventDetailsDialog(props: {
+  event: EventItem | null;
+  onClose: () => void;
+  onApprove: (eventId: string) => Promise<void>;
+  onReject: (eventId: string) => Promise<void>;
+}) {
+  if (!props.event) {
+    return null;
+  }
+
+  const event = props.event;
+
+  return (
+    <Dialog open={Boolean(props.event)} onOpenChange={(open) => !open && props.onClose()}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>{event.title}</DialogTitle>
+          <DialogDescription>
+            Verifica detaliile evenimentului inainte de aprobare sau respingere.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid max-h-[65vh] gap-4 overflow-y-auto pr-1">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <AdminDetailItem
+              label="Perioada"
+              value={`${formatDateTime(event.starts_at)} - ${formatDateTime(event.ends_at)}`}
+            />
+            <AdminDetailItem label="Organizator" value={event.creator_full_name} />
+            <AdminDetailItem label="Locatie" value={event.venue_name || "-"} />
+            <AdminDetailItem label="Participare" value={participationLabel(event)} />
+            <AdminDetailItem label="Categorie" value={event.category_name || "-"} />
+            <AdminDetailItem label="Facultate" value={event.faculty_name || "-"} />
+            <AdminDetailItem label="Departament" value={event.department_name || "-"} />
+            <AdminDetailItem
+              label="Inscriere"
+              value={registrationLabel(event)}
+            />
+          </div>
+
+          <div className="rounded-md border border-[#d7dfeb] bg-[#fbfcff] p-3">
+            <h3 className="text-sm font-semibold text-[#192041]">Descriere</h3>
+            <p className="mt-2 whitespace-pre-line text-sm text-[#667085]">
+              {event.description || "Fara descriere."}
+            </p>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <AdminResourceList
+              title="Materiale"
+              empty="Nu exista materiale atasate."
+              items={event.materials.map((material) => ({
+                label: material.title,
+                detail: material.material_type,
+                href: material.file_url,
+              }))}
+            />
+            <AdminResourceList
+              title="Sponsori"
+              empty="Nu exista sponsori atasati."
+              items={event.sponsors.map((sponsor) => ({
+                label: sponsor.name,
+                detail: sponsor.website_url || "",
+                href: sponsor.website_url || undefined,
+              }))}
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={props.onClose}
+          >
+            Inchide
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={() => void props.onReject(event.id)}
+          >
+            <XCircle />
+            Respinge
+          </Button>
+          <Button type="button" onClick={() => void props.onApprove(event.id)}>
+            <CheckCircle2 />
+            Aproba
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AdminDetailItem(props: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-[#d7dfeb] bg-[#fbfcff] p-3">
+      <dt className="text-xs font-semibold uppercase text-[#667085]">{props.label}</dt>
+      <dd className="mt-1 text-sm text-[#192041]">{props.value}</dd>
+    </div>
+  );
+}
+
+function AdminResourceList(props: {
+  title: string;
+  empty: string;
+  items: { label: string; detail: string; href?: string }[];
+}) {
+  return (
+    <div className="rounded-md border border-[#d7dfeb] p-3">
+      <h3 className="text-sm font-semibold text-[#192041]">{props.title}</h3>
+      <div className="mt-3 grid gap-2">
+        {props.items.map((item) => (
+          <div
+            key={`${item.label}-${item.href || item.detail}`}
+            className="flex items-center justify-between gap-3 rounded-md border border-[#d7dfeb] px-3 py-2"
+          >
+            {item.href ? (
+              <a
+                href={item.href}
+                target="_blank"
+                rel="noreferrer"
+                className="truncate text-sm font-medium text-[#254591]"
+              >
+                {item.label}
+              </a>
+            ) : (
+              <span className="truncate text-sm font-medium text-[#192041]">
+                {item.label}
+              </span>
+            )}
+            {item.detail && (
+              <span className="shrink-0 text-xs text-[#667085]">{item.detail}</span>
+            )}
+          </div>
+        ))}
+        {props.items.length === 0 && (
+          <p className="rounded-md border border-[#d7dfeb] px-3 py-3 text-sm text-[#667085]">
+            {props.empty}
+          </p>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -298,14 +467,13 @@ function OrganizersCard(props: {
   loading: boolean;
   setForm: React.Dispatch<React.SetStateAction<typeof emptyOrganizerForm>>;
   submitOrganizer: (event: FormEvent) => void;
-  updateUserRole: (userId: string, role: "organizer" | "admin") => Promise<void>;
 }) {
   return (
     <Card>
       <CardHeader>
         <CardTitle>Organizatori</CardTitle>
         <CardDescription>
-          Creeaza conturi si gestioneaza rolurile pentru organizatori.
+          Trimite invitatii pentru conturi de organizator.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-5">
@@ -340,39 +508,6 @@ function OrganizersCard(props: {
             </Field>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
-            <Field label="Parola initiala">
-              <Input
-                type="password"
-                minLength={8}
-                value={props.form.password}
-                onChange={(event) =>
-                  props.setForm((current) => ({
-                    ...current,
-                    password: event.target.value,
-                  }))
-                }
-                placeholder="Minim 8 caractere"
-                required
-              />
-            </Field>
-            <Field label="Rol">
-              <SelectField
-                value={props.form.role}
-                placeholder="Rol"
-                onChange={(role) =>
-                  props.setForm((current) => ({
-                    ...current,
-                    role: (role || "organizer") as "organizer" | "admin",
-                  }))
-                }
-                options={[
-                  { value: "organizer", label: "Organizer" },
-                  { value: "admin", label: "Admin" },
-                ]}
-              />
-            </Field>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
             <Field label="Facultate">
               <SelectField
                 value={props.form.faculty_id}
@@ -402,7 +537,7 @@ function OrganizersCard(props: {
           </div>
           <Button className="w-fit" disabled={props.loading}>
             <UserPlus />
-            Creeaza utilizator
+            Trimite invitatie
           </Button>
         </form>
 
@@ -410,8 +545,8 @@ function OrganizersCard(props: {
           <TableHeader>
             <TableRow>
               <TableHead>Utilizator</TableHead>
-              <TableHead>Rol</TableHead>
-              <TableHead className="text-right">Actiuni</TableHead>
+              <TableHead>Facultate</TableHead>
+              <TableHead>Departament</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -424,30 +559,10 @@ function OrganizersCard(props: {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <RoleBadge role={organizer.role} />
+                  {lookupName(props.faculties, organizer.faculty_id) || "-"}
                 </TableCell>
                 <TableCell>
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={organizer.role === "organizer"}
-                      onClick={() => void props.updateUserRole(organizer.id, "organizer")}
-                    >
-                      Organizer
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={organizer.role === "admin"}
-                      onClick={() => void props.updateUserRole(organizer.id, "admin")}
-                    >
-                      <ShieldCheck />
-                      Admin
-                    </Button>
-                  </div>
+                  {lookupName(props.departments, organizer.department_id) || "-"}
                 </TableCell>
               </TableRow>
             ))}
@@ -482,7 +597,7 @@ function ReportList(props: {
   empty: string;
 }) {
   return (
-    <div className="grid gap-3">
+    <div className="grid content-start gap-3">
       <h3 className="text-sm font-semibold text-[#192041]">{props.title}</h3>
       <div className="grid gap-2">
         {props.items.map((item) => (
@@ -513,14 +628,6 @@ function Field(props: { label: string; children: React.ReactNode }) {
   );
 }
 
-function RoleBadge(props: { role: Role }) {
-  return (
-    <Badge variant={props.role === "admin" ? "default" : "secondary"}>
-      {props.role}
-    </Badge>
-  );
-}
-
 function buildEventsByMonth(events: EventItem[]) {
   const grouped = new Map<string, { label: string; count: number }>();
   for (const event of events) {
@@ -535,6 +642,36 @@ function buildEventsByMonth(events: EventItem[]) {
   return [...grouped.entries()]
     .sort(([first], [second]) => first.localeCompare(second))
     .map(([, value]) => value);
+}
+
+function lookupName(items: Lookup[], id?: string | null): string {
+  return items.find((item) => item.id === id)?.name || "";
+}
+
+function participationLabel(event: EventItem): string {
+  const labels: Record<EventItem["participation_mode"], string> = {
+    physical: "Fizic",
+    online: "Online",
+    hybrid: "Hibrid",
+  };
+  return labels[event.participation_mode];
+}
+
+function registrationLabel(event: EventItem): string {
+  const parts = [
+    event.registration_required ? "Necesita inscriere" : "Nu necesita inscriere",
+    event.is_free ? "Intrare libera" : "Intrare cu plata",
+  ];
+
+  if (event.registration_url) {
+    parts.push("Are link de inscriere");
+  }
+
+  if (event.max_participants) {
+    parts.push(`${event.registration_count}/${event.max_participants} participanti`);
+  }
+
+  return parts.join(" · ");
 }
 
 function buildEventsByOrganizer(events: EventItem[]) {

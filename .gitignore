@@ -15,6 +15,9 @@ frontend/dist/
 # Supabase CLI
 supabase/.temp/
 
+# SonarQube
+.scannerwork/
+
 # Local lab/source documents
 documents/
 

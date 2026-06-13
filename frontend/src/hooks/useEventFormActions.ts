@@ -136,7 +136,7 @@ export function useEventFormActions(options: UseEventFormActionsOptions) {
     if (!eventId) {
       return;
     }
-    if (!materialForm.file && !materialForm.file_url) {
+    if (!materialForm.file && !materialForm.file_url.trim()) {
       setError("Alege un fisier sau completeaza un URL pentru material.");
       return;
     }
@@ -165,7 +165,7 @@ export function useEventFormActions(options: UseEventFormActionsOptions) {
     await request("post", `/events/${eventId}/materials`, {
       material_type: material.material_type,
       title: material.title,
-      file_url: material.file_url,
+      file_url: material.file_url.trim(),
       file_name: material.file_name || null,
       file_size_bytes: material.file_size_bytes
         ? Number(material.file_size_bytes)
@@ -175,7 +175,7 @@ export function useEventFormActions(options: UseEventFormActionsOptions) {
 
   function addPendingMaterial(event: FormEvent) {
     event.preventDefault();
-    if (!materialForm.file && !materialForm.file_url) {
+    if (!materialForm.file && !materialForm.file_url.trim()) {
       setError("Alege un fisier sau completeaza un URL pentru material.");
       return;
     }

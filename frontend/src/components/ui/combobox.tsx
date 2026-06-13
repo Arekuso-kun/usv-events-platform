@@ -39,11 +39,13 @@ function Combobox(props: {
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "h-11 w-full justify-between px-3 font-normal",
+            "h-11 w-full min-w-0 justify-between px-3 font-normal",
             selected ? "text-[#192041]" : "text-[#667085]",
           )}
         >
-          <span className="truncate">{selected?.label || props.placeholder}</span>
+          <span className="min-w-0 flex-1 truncate text-left">
+            {selected?.label || props.placeholder}
+          </span>
           <ChevronsUpDown className="size-4 shrink-0 text-[#254591]" />
         </Button>
       </PopoverTrigger>
@@ -67,7 +69,7 @@ function Combobox(props: {
                     props.value === option.value ? "opacity-100" : "opacity-0",
                   )}
                 />
-                <span className="truncate">{option.label}</span>
+                <span className="min-w-0 flex-1 truncate">{option.label}</span>
               </CommandItem>
             ))}
           </CommandList>

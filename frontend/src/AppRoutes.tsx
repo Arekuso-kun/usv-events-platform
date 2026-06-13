@@ -96,7 +96,10 @@ interface AppRoutesProps {
   startGoogleLogin: () => void;
   setFilter: (name: keyof FilterState, value: string) => void;
   setSelectedEventId: (eventId: string | null) => void;
-  registerForEvent: (eventId: string) => Promise<void>;
+  registerForEvent: (
+    eventId: string,
+    alreadyRegistered?: boolean,
+  ) => Promise<void>;
   loadMyRegistration: (eventId: string) => Promise<void>;
   submitFeedback: (event: FormEvent, eventId: string) => Promise<void>;
   setFeedbackForm: Dispatch<SetStateAction<{ rating: string; comment: string }>>;

@@ -61,7 +61,12 @@ export function useEvents(options: UseEventsOptions) {
     setFilters((current) => ({ ...current, [name]: value }));
   }
 
-  async function registerForEvent(eventId: string) {
+  async function registerForEvent(eventId: string, alreadyRegistered = false) {
+    if (alreadyRegistered) {
+      setNotice("Esti deja inscris la acest eveniment.");
+      return;
+    }
+
     try {
       const updated = await request<EventItem>("post", `/events/${eventId}/register`);
       setEvents((current) =>

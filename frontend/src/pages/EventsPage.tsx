@@ -13,6 +13,7 @@ import { API_URL } from "../api/client";
 import { DatePicker } from "../components/DatePicker";
 import { SelectField } from "../components/SelectField";
 import { StatusBadge } from "../components/StatusBadge";
+import { Combobox } from "../components/ui/combobox";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -62,7 +63,7 @@ interface EventDetailPageProps {
   user: User | null;
   myRegistrations: Record<string, Registration | null>;
   loadMyRegistration: (eventId: string) => Promise<void>;
-  registerForEvent: (id: string) => Promise<void>;
+  registerForEvent: (id: string, alreadyRegistered?: boolean) => Promise<void>;
   submitFeedback: (event: FormEvent, eventId: string) => void;
   feedbackForm: { rating: string; comment: string };
   setFeedbackForm: Dispatch<SetStateAction<{ rating: string; comment: string }>>;
@@ -213,29 +214,36 @@ export function EventDetailPage(props: EventDetailPageProps) {
   }
 
   const hasRegistrationLink = Boolean(event.registration_url);
-  const canRegisterInternally =
+  const canUseInternalRegistration =
     Boolean(props.user) &&
     event.registration_required &&
-    !hasRegistrationLink &&
-    !myRegistration;
+    !hasRegistrationLink;
 
   return (
     <div className="grid gap-4">
       <EventBreadcrumb title={event.title} />
 
       <Card>
-        <CardHeader className="flex-row items-start justify-between gap-4">
-          <div>
-            <StatusBadge status={event.status} />
-            <CardTitle className="mt-3 text-2xl">{event.title}</CardTitle>
-            <CardDescription>{event.description || "Fara descriere."}</CardDescription>
+        <CardHeader className="flex-row items-start justify-between gap-4 pb-4">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge status={event.status} />
+              <span className="rounded-full bg-[rgba(134,193,234,0.22)] px-3 py-1 text-xs font-semibold text-[#192041]">
+                {event.registration_count}/{event.max_participants || "nelimitat"}
+              </span>
+            </div>
+            <CardTitle className="mt-4 break-words text-3xl leading-tight">
+              {event.title}
+            </CardTitle>
+            {event.description && (
+              <CardDescription className="mt-2 max-w-3xl">
+                {event.description}
+              </CardDescription>
+            )}
           </div>
-          <span className="rounded-full bg-[rgba(134,193,234,0.22)] px-3 py-1 text-sm font-semibold text-[#192041]">
-            {event.registration_count}/{event.max_participants || "nelimitat"}
-          </span>
         </CardHeader>
-        <CardContent className="grid gap-5">
-          <dl className="grid gap-3 sm:grid-cols-2">
+        <CardContent className="grid gap-4">
+          <dl className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <DetailItem
               label="Data"
               value={`${formatDateTime(event.starts_at)} - ${formatDateTime(event.ends_at)}`}
@@ -251,42 +259,43 @@ export function EventDetailPage(props: EventDetailPageProps) {
             />
           </dl>
 
-          <EventQrCode event={event} />
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.45fr)]">
+            <EventQrCode event={event} />
 
-          {props.user && (
-            <InternalRegistrationStatus
-              event={event}
-              registration={myRegistration}
-            />
-          )}
+            <div className="grid gap-3 content-start">
+              {props.user && <InternalRegistrationStatus registration={myRegistration} />}
 
-          <div className="flex flex-wrap gap-2">
-            {canRegisterInternally && (
-              <Button
-                type="button"
-                onClick={() => void props.registerForEvent(event.id)}
-                disabled={event.is_full}
-              >
-                Inscriere
-              </Button>
-            )}
-            {event.registration_url && (
-              <Button asChild>
-                <a href={event.registration_url}>Link inscriere</a>
-              </Button>
-            )}
-            <Button asChild variant="secondary">
-              <a href={`${API_URL}/events/${event.id}/calendar.ics`}>ICS</a>
-            </Button>
-            <Button asChild variant="secondary">
-              <a
-                href={getGoogleCalendarUrl(event)}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Google Calendar
-              </a>
-            </Button>
+              <div className="flex flex-wrap gap-2">
+                {canUseInternalRegistration && (
+                  <Button
+                    type="button"
+                    onClick={() =>
+                      void props.registerForEvent(event.id, Boolean(myRegistration))
+                    }
+                    disabled={event.is_full && !myRegistration}
+                  >
+                    {myRegistration ? "Inscris" : "Inscriere"}
+                  </Button>
+                )}
+                {event.registration_url && (
+                  <Button asChild>
+                    <a href={event.registration_url}>Link inscriere</a>
+                  </Button>
+                )}
+                <Button asChild variant="secondary">
+                  <a href={`${API_URL}/events/${event.id}/calendar.ics`}>ICS</a>
+                </Button>
+                <Button asChild variant="secondary">
+                  <a
+                    href={getGoogleCalendarUrl(event)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Google Calendar
+                  </a>
+                </Button>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -296,9 +305,11 @@ export function EventDetailPage(props: EventDetailPageProps) {
       <Card>
         <CardHeader>
           <CardTitle>Feedback</CardTitle>
-          <CardDescription>
-            Feedback-ul poate fi trimis doar dupa autentificare.
-          </CardDescription>
+          {!props.user && (
+            <CardDescription>
+              Feedback-ul poate fi trimis doar dupa autentificare.
+            </CardDescription>
+          )}
         </CardHeader>
         <CardContent>
           {props.user ? (
@@ -348,6 +359,25 @@ export function EventDetailPage(props: EventDetailPageProps) {
 
 function EventFilters(props: EventsPageProps) {
   const hasActiveFilters = Object.values(props.filters).some(Boolean);
+  const organizerOptions = useMemo(() => {
+    const optionsByName = new Map<string, string>();
+
+    props.events.forEach((event) => {
+      const name = event.creator_full_name.trim();
+      if (name) {
+        optionsByName.set(name.toLowerCase(), name);
+      }
+    });
+
+    const selectedOrganizer = props.filters.organizer.trim();
+    if (selectedOrganizer) {
+      optionsByName.set(selectedOrganizer.toLowerCase(), selectedOrganizer);
+    }
+
+    return Array.from(optionsByName.values())
+      .sort((first, second) => first.localeCompare(second, "ro"))
+      .map((name) => ({ value: name, label: name }));
+  }, [props.events, props.filters.organizer]);
 
   function resetFilters() {
     (Object.keys(props.filters) as Array<keyof FilterState>).forEach((name) => {
@@ -364,8 +394,9 @@ function EventFilters(props: EventsPageProps) {
         </div>
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           size="sm"
+          className="bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800"
           disabled={!hasActiveFilters}
           onClick={resetFilters}
         >
@@ -383,10 +414,13 @@ function EventFilters(props: EventsPageProps) {
               />
             </FilterField>
             <FilterField label="Organizator">
-              <Input
+              <Combobox
                 value={props.filters.organizer}
-                onChange={(event) => props.setFilter("organizer", event.target.value)}
                 placeholder="Organizator"
+                searchPlaceholder="Cauta organizator..."
+                emptyText="Nu exista organizatori disponibili."
+                options={organizerOptions}
+                onValueChange={(value) => props.setFilter("organizer", value)}
               />
             </FilterField>
           </div>
@@ -503,11 +537,13 @@ function LookupFilter(props: {
   onChange: (value: string) => void;
 }) {
   return (
-    <SelectField
+    <Combobox
       value={props.value}
       placeholder={props.placeholder}
-      onChange={props.onChange}
+      searchPlaceholder={`Cauta ${props.placeholder.toLowerCase()}...`}
+      emptyText="Nu exista rezultate."
       options={props.items.map((item) => ({ value: item.id, label: item.name }))}
+      onValueChange={props.onChange}
     />
   );
 }
@@ -530,9 +566,13 @@ function EventBreadcrumb({ title }: { title: string }) {
 
 function DetailItem(props: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-[#d7dfeb] bg-[#fbfcff] p-3">
-      <dt className="text-xs font-semibold uppercase text-[#667085]">{props.label}</dt>
-      <dd className="mt-1 text-sm text-[#192041]">{props.value}</dd>
+    <div className="rounded-md border border-[#d7dfeb] bg-[#fbfcff] px-4 py-3">
+      <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#667085]">
+        {props.label}
+      </dt>
+      <dd className="mt-1 break-words text-sm font-medium text-[#192041]">
+        {props.value}
+      </dd>
     </div>
   );
 }
@@ -541,11 +581,11 @@ function EventQrCode({ event }: { event: EventItem }) {
   const eventUrl = `${window.location.origin}/events/${event.id}`;
 
   return (
-    <div className="grid gap-4 rounded-md border border-[#d7dfeb] bg-[#fbfcff] p-4 md:grid-cols-[180px_minmax(0,1fr)] md:items-center">
-      <div className="w-fit rounded-md border border-[#d7dfeb] bg-white p-3 shadow-sm">
+    <div className="grid gap-4 rounded-md border border-[#d7dfeb] bg-[#fbfcff] p-4 md:grid-cols-[156px_minmax(0,1fr)] md:items-center">
+      <div className="w-fit rounded-md border border-[#d7dfeb] bg-white p-2 shadow-sm">
         <QRCodeSVG
           value={eventUrl}
-          size={156}
+          size={136}
           bgColor="#ffffff"
           fgColor="#192041"
           level="M"
@@ -566,37 +606,17 @@ function EventQrCode({ event }: { event: EventItem }) {
   );
 }
 
-function InternalRegistrationStatus(props: {
-  event: EventItem;
-  registration: Registration | null;
-}) {
+function InternalRegistrationStatus(props: { registration: Registration | null }) {
   if (props.registration) {
     return (
-      <div className="flex flex-wrap items-center gap-2 rounded-md border border-[#86C1EA] bg-[rgba(134,193,234,0.12)] px-3 py-2 text-sm text-[#192041]">
+      <div className="rounded-md border border-[#86C1EA] bg-[rgba(134,193,234,0.12)] px-3 py-3 text-sm text-[#192041]">
         <Badge variant="secondary">
           {registrationStatusLabel(props.registration.status)}
         </Badge>
-        <span>
+        <p className="mt-2">
           Esti inscris intern din {formatDateTime(props.registration.registered_at)}.
-        </span>
+        </p>
       </div>
-    );
-  }
-
-  if (props.event.registration_url) {
-    return (
-      <p className="rounded-md border border-[#d7dfeb] px-3 py-2 text-sm text-[#667085]">
-        Inscrierea se face prin link extern. Nu ai o inscriere interna pentru acest
-        eveniment.
-      </p>
-    );
-  }
-
-  if (props.event.registration_required) {
-    return (
-      <p className="rounded-md border border-[#d7dfeb] px-3 py-2 text-sm text-[#667085]">
-        Nu esti inscris intern la acest eveniment.
-      </p>
     );
   }
 
@@ -651,9 +671,25 @@ function InlineResourceList({ event }: { event: EventItem }) {
                 key={sponsor.id}
                 className="flex items-center justify-between gap-3 rounded-md border border-[#d7dfeb] p-3"
               >
-                <span className="text-sm font-medium">{sponsor.name}</span>
+                <div className="flex min-w-0 items-center gap-3">
+                  {sponsor.logo_url && (
+                    <img
+                      className="h-9 w-9 rounded border border-[#d7dfeb] object-contain"
+                      src={sponsor.logo_url}
+                      alt=""
+                    />
+                  )}
+                  <span className="truncate text-sm font-medium">
+                    {sponsor.name}
+                  </span>
+                </div>
                 {sponsor.website_url && (
-                  <a className="text-sm text-[#254591]" href={sponsor.website_url}>
+                  <a
+                    className="shrink-0 text-sm text-[#254591]"
+                    href={sponsor.website_url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     website
                   </a>
                 )}

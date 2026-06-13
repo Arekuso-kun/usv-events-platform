@@ -107,7 +107,7 @@ function viewTitle(view: AppView): string {
 
 function pageTitle(pathname: string, view: AppView): string {
   if (pathname.startsWith("/events/")) {
-    return "Detaliu eveniment";
+    return "Detalii eveniment";
   }
   if (pathname === "/organizer/events/new") {
     return "Eveniment nou";

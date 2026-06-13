@@ -1,4 +1,4 @@
-import { ArrowLeft, FileUp, LinkIcon, Plus } from "lucide-react";
+import { ArrowLeft, FileUp, Plus, Trash2 } from "lucide-react";
 import {
   useEffect,
   useState,
@@ -295,7 +295,7 @@ export function OrganizerEventFormPage(props: OrganizerEventFormPageProps) {
             </div>
           </form>
 
-          <div className="grid gap-3 border-t border-[#d7dfeb] pt-4">
+          <div className="grid gap-3">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
               <h3 className="text-sm font-semibold uppercase text-[#667085]">
@@ -495,7 +495,7 @@ function SponsorModal(
               placeholder="Website"
             />
           </Field>
-          <DialogFooter>
+          <DialogFooter className="border-t-0 pt-0">
             <Button type="button" variant="outline" onClick={props.onClose}>
               Anuleaza
             </Button>
@@ -516,6 +516,8 @@ function MaterialPanel(
   props: OrganizerEventFormPageProps & { event: EventItem | null },
 ) {
   const materialItems = props.event?.materials ?? props.pendingMaterials;
+  const hasMaterialUrl = props.materialForm.file_url.trim().length > 0;
+  const hasMaterialFile = Boolean(props.materialForm.file);
 
   return (
     <section className="grid gap-4 rounded-md border border-[#d7dfeb] bg-white p-4">
@@ -596,6 +598,9 @@ function MaterialPanel(
                 props.setMaterialForm((current) => ({
                   ...current,
                   file_url,
+                  file: file_url.trim() ? null : current.file,
+                  file_name: file_url.trim() ? "" : current.file_name,
+                  file_size_bytes: file_url.trim() ? "" : current.file_size_bytes,
                   material_type: detectMaterialType({
                     fileName: file_url,
                     fallback: current.material_type,
@@ -603,36 +608,69 @@ function MaterialPanel(
                 }));
               }}
               placeholder="URL material existent"
+              disabled={hasMaterialFile}
             />
           </Field>
           <Field label="Fisier nou">
-            <Input
-              type="file"
-              onChange={(formEvent) => {
-                const file = formEvent.target.files?.[0] ?? null;
-                props.setMaterialForm((current) => ({
-                  ...current,
-                  file,
-                  file_name: file?.name || "",
-                  file_size_bytes: file ? String(file.size) : "",
-                  material_type: detectMaterialType({
-                    fileName: file?.name,
-                    contentType: file?.type,
-                    fallback: current.material_type,
-                  }),
-                  title: current.title || (file ? stripExtension(file.name) : ""),
-                }));
-              }}
-            />
+            <div className="grid gap-2">
+              <Input
+                key={
+                  props.materialForm.file
+                    ? `file-${props.materialForm.file.name}`
+                    : hasMaterialUrl
+                      ? "url-selected"
+                      : "empty-file"
+                }
+                type="file"
+                disabled={hasMaterialUrl}
+                onChange={(formEvent) => {
+                  const file = formEvent.target.files?.[0] ?? null;
+                  props.setMaterialForm((current) => ({
+                    ...current,
+                    file,
+                    file_url: file ? "" : current.file_url,
+                    file_name: file?.name || "",
+                    file_size_bytes: file ? String(file.size) : "",
+                    material_type: detectMaterialType({
+                      fileName: file?.name,
+                      contentType: file?.type,
+                      fallback: current.material_type,
+                    }),
+                    title: current.title || (file ? stripExtension(file.name) : ""),
+                  }));
+                }}
+              />
+            </div>
           </Field>
-          <Button
-            className="w-fit"
-            variant="secondary"
-            disabled={!props.materialForm.file && !props.materialForm.file_url}
-          >
-            <FileUp />
-            {props.event ? "Ataseaza material" : "Adauga material in formular"}
-          </Button>
+          <div className="flex items-center justify-between gap-3">
+            <Button
+              className="w-fit"
+              variant="secondary"
+              disabled={!props.materialForm.file && !props.materialForm.file_url.trim()}
+            >
+              <FileUp />
+              {props.event ? "Ataseaza material" : "Adauga material in formular"}
+            </Button>
+            {hasMaterialFile && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="w-fit bg-red-50 px-3 text-red-700 hover:bg-red-100 hover:text-red-800"
+                onClick={() =>
+                  props.setMaterialForm((current) => ({
+                    ...current,
+                    file: null,
+                    file_name: "",
+                    file_size_bytes: "",
+                  }))
+                }
+              >
+                <Trash2 />
+                Sterge fisier
+              </Button>
+            )}
+          </div>
         </form>
     </section>
   );
@@ -647,16 +685,23 @@ function SponsorPanel(
   const selectedSponsors = props.event
     ? props.event.sponsors
     : props.sponsors.filter((sponsor) => props.pendingSponsorIds.includes(sponsor.id));
+  const selectedSponsorIds = new Set(
+    selectedSponsors.map((sponsor) => sponsor.id),
+  );
+  const availableSponsors = props.sponsors.filter(
+    (sponsor) => !selectedSponsorIds.has(sponsor.id),
+  );
 
-  function attachExisting() {
-    if (!props.sponsorToLink) {
+  function attachExisting(sponsorId: string) {
+    if (!sponsorId) {
+      props.setSponsorToLink("");
       return;
     }
     if (props.event) {
-      void props.linkSponsor(props.event.id, props.sponsorToLink);
+      void props.linkSponsor(props.event.id, sponsorId);
       return;
     }
-    props.togglePendingSponsor(props.sponsorToLink);
+    props.togglePendingSponsor(sponsorId);
     props.setSponsorToLink("");
   }
 
@@ -720,23 +765,14 @@ function SponsorPanel(
               value={props.sponsorToLink}
               placeholder="Sponsor existent"
               searchPlaceholder="Cauta sponsor..."
-              onValueChange={props.setSponsorToLink}
-              options={props.sponsors.map((sponsor) => ({
+              emptyText="Nu mai exista sponsori disponibili."
+              onValueChange={attachExisting}
+              options={availableSponsors.map((sponsor) => ({
                 value: sponsor.id,
                 label: sponsor.name,
               }))}
             />
           </Field>
-          <Button
-            type="button"
-            className="w-fit"
-            variant="secondary"
-            disabled={!props.sponsorToLink}
-            onClick={attachExisting}
-          >
-            <LinkIcon />
-            {props.event ? "Ataseaza sponsor" : "Adauga sponsor in formular"}
-          </Button>
         </div>
 
     </section>

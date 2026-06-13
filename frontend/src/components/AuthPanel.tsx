@@ -35,7 +35,7 @@ export function AuthPanel(props: AuthPanelProps) {
       </div>
       <Button
         type="button"
-        variant="outline"
+        variant="secondary"
         className="h-10 w-full justify-start"
         onClick={props.logout}
       >
@@ -58,7 +58,7 @@ function userInitials(name: string): string {
 
 function roleLabel(role: User["role"]): string {
   const labels: Record<User["role"], string> = {
-    admin: "Administrator",
+    admin: "Admin",
     organizer: "Organizator",
     student: "Student",
   };

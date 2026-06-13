@@ -90,8 +90,12 @@ class FakeEventsService:
 
     def list_managed_events(self, current_user: UserResponse) -> list[EventResponse]:
         if current_user.role == "admin":
-            return self.events
-        return [event for event in self.events if event.creator_id == current_user.id]
+            events = self.events
+        else:
+            events = [
+                event for event in self.events if event.creator_id == current_user.id
+            ]
+        return sorted(events, key=lambda event: event.created_at, reverse=True)
 
     def get_event(self, event_id: str) -> EventResponse:
         for event in self.events:
@@ -121,7 +125,7 @@ class FakeEventsService:
             registration_deadline=payload.registration_deadline,
             is_free=payload.is_free,
             status="published",
-            created_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+            created_at=datetime(2026, 4, len(self.events) + 1, tzinfo=timezone.utc),
             creator_id=current_user.id,
             creator_full_name=current_user.full_name,
             registration_count=0,

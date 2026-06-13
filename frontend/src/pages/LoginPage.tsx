@@ -84,7 +84,7 @@ export function LoginPage(props: LoginPageProps) {
             </div>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               className="h-11"
               onClick={props.startGoogleLogin}
             >

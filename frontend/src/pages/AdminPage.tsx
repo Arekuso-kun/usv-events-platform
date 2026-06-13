@@ -36,6 +36,7 @@ import type {
   User,
 } from "../types";
 import { formatDateTime } from "../utils/date";
+import { formatCategoryName, formatParticipationMode } from "../utils/labels";
 
 interface AdminPageProps {
   user: User | null;
@@ -228,7 +229,7 @@ function PendingEventsCard(props: {
             {props.events.length} evenimente asteapta publicarea
           </CardDescription>
         </div>
-        <Button type="button" variant="outline" onClick={props.reloadAdmin}>
+        <Button type="button" variant="secondary" onClick={props.reloadAdmin}>
           <RefreshCw />
           Actualizeaza
         </Button>
@@ -258,7 +259,7 @@ function PendingEventsCard(props: {
                     <Button
                       type="button"
                       size="sm"
-                      variant="outline"
+                      variant="secondary"
                       onClick={() => setSelectedEvent(event)}
                     >
                       <Eye />
@@ -342,8 +343,14 @@ function PendingEventDetailsDialog(props: {
             />
             <AdminDetailItem label="Organizator" value={event.creator_full_name} />
             <AdminDetailItem label="Locatie" value={event.venue_name || "-"} />
-            <AdminDetailItem label="Participare" value={participationLabel(event)} />
-            <AdminDetailItem label="Categorie" value={event.category_name || "-"} />
+            <AdminDetailItem
+              label="Participare"
+              value={formatParticipationMode(event.participation_mode)}
+            />
+            <AdminDetailItem
+              label="Categorie"
+              value={formatCategoryName(event.category_name) || "-"}
+            />
             <AdminDetailItem label="Facultate" value={event.faculty_name || "-"} />
             <AdminDetailItem label="Departament" value={event.department_name || "-"} />
             <AdminDetailItem
@@ -384,7 +391,7 @@ function PendingEventDetailsDialog(props: {
         <DialogFooter>
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             onClick={props.onClose}
           >
             Inchide
@@ -646,15 +653,6 @@ function buildEventsByMonth(events: EventItem[]) {
 
 function lookupName(items: Lookup[], id?: string | null): string {
   return items.find((item) => item.id === id)?.name || "";
-}
-
-function participationLabel(event: EventItem): string {
-  const labels: Record<EventItem["participation_mode"], string> = {
-    physical: "Fizic",
-    online: "Online",
-    hybrid: "Hibrid",
-  };
-  return labels[event.participation_mode];
 }
 
 function registrationLabel(event: EventItem): string {

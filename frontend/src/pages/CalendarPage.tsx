@@ -97,18 +97,19 @@ export function CalendarPage(props: {
               </CardDescription>
             </div>
 
-            <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto">
+            <div className="flex w-full flex-wrap items-center gap-1.5 lg:w-auto">
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 size="icon"
+                className="h-10 w-10"
                 aria-label="Luna anterioara"
                 onClick={() => moveMonth(-1)}
               >
                 <ChevronLeft />
               </Button>
               <CalendarSelect
-                width={148}
+                width={150}
                 value={String(selectedMonth)}
                 ariaLabel="Selecteaza luna"
                 onChange={selectMonth}
@@ -118,7 +119,7 @@ export function CalendarPage(props: {
                 }))}
               />
               <CalendarSelect
-                width={96}
+                width={98}
                 value={String(selectedYear)}
                 ariaLabel="Selecteaza anul"
                 onChange={selectYear}
@@ -129,14 +130,19 @@ export function CalendarPage(props: {
               />
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 size="icon"
+                className="h-10 w-10"
                 aria-label="Luna urmatoare"
                 onClick={() => moveMonth(1)}
               >
                 <ChevronRight />
               </Button>
-              <Button type="button" variant="secondary" onClick={selectToday}>
+              <Button
+                type="button"
+                className="h-10 px-3.5"
+                onClick={selectToday}
+              >
                 Azi
               </Button>
             </div>
@@ -229,6 +235,7 @@ function CalendarSelect(props: {
         value={props.value}
         placeholder={props.ariaLabel}
         options={props.options}
+        className="h-10"
         onValueChange={props.onChange}
       />
     </div>

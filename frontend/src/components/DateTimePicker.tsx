@@ -246,8 +246,7 @@ export function DateTimePicker(props: {
           <div className="mt-3 flex justify-between gap-2">
             <Button
               type="button"
-              variant="secondary"
-              className="bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800"
+              variant="destructive"
               onClick={clearValue}
             >
               Sterge

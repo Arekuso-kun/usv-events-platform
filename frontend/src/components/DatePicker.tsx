@@ -95,7 +95,7 @@ export function DatePicker(props: {
           <Button
             type="button"
             className="mt-3 w-full"
-            variant="secondary"
+            variant="destructive"
             onClick={() => {
               props.onChange("");
               setOpen(false);

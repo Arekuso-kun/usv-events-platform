@@ -49,6 +49,7 @@ import {
 } from "../components/ui/table";
 import type { EventItem, FilterState, Lookup, Registration, User } from "../types";
 import { formatDateTime, getGoogleCalendarUrl } from "../utils/date";
+import { formatCategoryName, formatParticipationMode } from "../utils/labels";
 
 const PAGE_SIZE = 8;
 type EventVisibility = "all" | "upcoming" | "finished";
@@ -158,7 +159,9 @@ export function EventsPage(props: EventsPageProps) {
                   <TableCell className="font-medium">{event.title}</TableCell>
                   <TableCell>{formatDateTime(event.starts_at)}</TableCell>
                   <TableCell>{event.venue_name || "Locatie nesetata"}</TableCell>
-                  <TableCell>{event.category_name || "Fara categorie"}</TableCell>
+                  <TableCell>
+                    {formatCategoryName(event.category_name) || "Fara categorie"}
+                  </TableCell>
                   <TableCell>{event.creator_full_name}</TableCell>
                   <TableCell>
                     <EventTimingBadge event={event} />
@@ -323,8 +326,14 @@ export function EventDetailPage(props: EventDetailPageProps) {
             />
             <DetailItem label="Locatie" value={event.venue_name || "-"} />
             <DetailItem label="Organizator" value={event.creator_full_name} />
-            <DetailItem label="Participare" value={event.participation_mode} />
-            <DetailItem label="Categorie" value={event.category_name || "-"} />
+            <DetailItem
+              label="Participare"
+              value={formatParticipationMode(event.participation_mode)}
+            />
+            <DetailItem
+              label="Categorie"
+              value={formatCategoryName(event.category_name) || "-"}
+            />
             <DetailItem label="Facultate" value={event.faculty_name || "-"} />
             <DetailItem
               label="Inscriere"
@@ -383,7 +392,7 @@ export function EventDetailPage(props: EventDetailPageProps) {
           ) : (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-[#d7dfeb] px-3 py-3 text-sm text-[#667085]">
               <span>Autentifica-te pentru a trimite feedback la acest eveniment.</span>
-              <Button asChild variant="outline">
+              <Button asChild variant="secondary">
                 <Link to="/login">Autentificare</Link>
               </Button>
             </div>
@@ -431,9 +440,8 @@ function EventFilters(props: EventsPageProps) {
         </div>
         <Button
           type="button"
-          variant="secondary"
+          variant="destructive"
           size="sm"
-          className="bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800"
           disabled={!hasActiveFilters}
           onClick={resetFilters}
         >
@@ -484,6 +492,7 @@ function EventFilters(props: EventsPageProps) {
                 value={props.filters.category_id}
                 items={props.categories}
                 placeholder="Categorie"
+                formatLabel={formatCategoryName}
                 onChange={(value) => props.setFilter("category_id", value)}
               />
             </FilterField>
@@ -571,6 +580,7 @@ function LookupFilter(props: {
   value: string;
   items: Lookup[];
   placeholder: string;
+  formatLabel?: (value: string) => string;
   onChange: (value: string) => void;
 }) {
   return (
@@ -579,7 +589,10 @@ function LookupFilter(props: {
       placeholder={props.placeholder}
       searchPlaceholder={`Cauta ${props.placeholder.toLowerCase()}...`}
       emptyText="Nu exista rezultate."
-      options={props.items.map((item) => ({ value: item.id, label: item.name }))}
+      options={props.items.map((item) => ({
+        value: item.id,
+        label: props.formatLabel ? props.formatLabel(item.name) : item.name,
+      }))}
       onValueChange={props.onChange}
     />
   );

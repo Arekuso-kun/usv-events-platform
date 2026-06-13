@@ -1,4 +1,4 @@
-import { ArrowLeft, FileUp, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, FileUp, Loader2, Plus, Trash2 } from "lucide-react";
 import {
   useEffect,
   useState,
@@ -45,6 +45,7 @@ import type {
   User,
   VenueFormState,
 } from "../types";
+import { formatCategoryName } from "../utils/labels";
 
 interface OrganizerEventFormPageProps {
   mode: "create" | "edit";
@@ -76,7 +77,7 @@ interface OrganizerEventFormPageProps {
   linkSponsor: (eventId?: string, sponsorId?: string) => Promise<boolean>;
   setVenueForm: Dispatch<SetStateAction<VenueFormState>>;
   createVenue: () => Promise<boolean>;
-  createEvent: (event: FormEvent) => void;
+  createEvent: (event: FormEvent) => Promise<void>;
   updateEvent: (eventId: string, event: FormEvent) => void;
 }
 
@@ -280,6 +281,7 @@ export function OrganizerEventFormPage(props: OrganizerEventFormPageProps) {
                   value={props.eventForm.category_id}
                   items={props.categories}
                   placeholder="Categorie"
+                  formatLabel={formatCategoryName}
                   onChange={(value) => props.setEventField("category_id", value)}
                 />
                 <LookupField
@@ -301,16 +303,7 @@ export function OrganizerEventFormPage(props: OrganizerEventFormPageProps) {
           </form>
 
           <div className="grid gap-3">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-              <h3 className="text-sm font-semibold uppercase text-[#667085]">
-                Materiale si sponsori
-              </h3>
-              <p className="mt-1 text-sm text-[#667085]">
-                Adauga resursele asociate evenimentului in acelasi flux.
-              </p>
-              </div>
-            </div>
+            
             <div className="grid items-start gap-3 xl:grid-cols-2">
               <MaterialPanel {...props} event={event} />
               <SponsorPanel
@@ -328,9 +321,8 @@ export function OrganizerEventFormPage(props: OrganizerEventFormPageProps) {
               form="organizer-event-form"
               type="submit"
             >
-              {props.mode === "create"
-                ? "Creeaza eveniment"
-                : "Salveaza modificarile"}
+              {props.loading && <Loader2 className="animate-spin" />}
+              {getSubmitLabel(props.mode, props.loading)}
             </Button>
           </div>
         </CardContent>
@@ -420,7 +412,7 @@ function VenueModal(
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={props.onClose}>
+          <Button type="button" variant="secondary" onClick={props.onClose}>
             Anuleaza
           </Button>
           <Button
@@ -501,7 +493,7 @@ function SponsorModal(
             />
           </Field>
           <DialogFooter className="border-t-0 pt-0">
-            <Button type="button" variant="outline" onClick={props.onClose}>
+            <Button type="button" variant="secondary" onClick={props.onClose}>
               Anuleaza
             </Button>
             <Button
@@ -559,7 +551,7 @@ function MaterialPanel(
                 {!props.event && (
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="destructive"
                     size="sm"
                     onClick={() => props.removePendingMaterial(material.id)}
                   >
@@ -659,9 +651,9 @@ function MaterialPanel(
             {hasMaterialFile && (
               <Button
                 type="button"
-                variant="secondary"
+                variant="destructive"
                 size="sm"
-                className="w-fit bg-red-50 px-3 text-red-700 hover:bg-red-100 hover:text-red-800"
+                className="w-fit px-3"
                 onClick={() =>
                   props.setMaterialForm((current) => ({
                     ...current,
@@ -745,7 +737,7 @@ function SponsorPanel(
               {!props.event && (
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="destructive"
                   size="sm"
                   onClick={() => props.togglePendingSponsor(sponsor.id)}
                 >
@@ -798,6 +790,7 @@ function LookupField(props: {
   value: string;
   items: Lookup[];
   placeholder: string;
+  formatLabel?: (value: string) => string;
   onChange: (value: string) => void;
 }) {
   return (
@@ -807,7 +800,10 @@ function LookupField(props: {
         placeholder={props.placeholder}
         searchPlaceholder={`Cauta ${props.label.toLowerCase()}...`}
         onValueChange={props.onChange}
-        options={props.items.map((item) => ({ value: item.id, label: item.name }))}
+        options={props.items.map((item) => ({
+          value: item.id,
+          label: props.formatLabel ? props.formatLabel(item.name) : item.name,
+        }))}
       />
     </Field>
   );
@@ -831,6 +827,14 @@ function DateTimeField(props: {
       onChange={props.onChange}
     />
   );
+}
+
+function getSubmitLabel(mode: "create" | "edit", loading: boolean): string {
+  if (loading) {
+    return mode === "create" ? "Se creeaza..." : "Se salveaza...";
+  }
+
+  return mode === "create" ? "Creeaza eveniment" : "Salveaza modificarile";
 }
 
 function getCurrentDateTimeValue(): string {

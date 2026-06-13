@@ -1,5 +1,5 @@
-import { CheckCircle2, Download, Pencil, Plus, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { CheckCircle2, Download, Pencil, Plus, Trash2, XCircle } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   Breadcrumb,
@@ -9,6 +9,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "../components/ui/breadcrumb";
+import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -37,6 +38,7 @@ import type {
   User,
 } from "../types";
 import { formatDateTime } from "../utils/date";
+import { formatCategoryName, formatParticipationMode } from "../utils/labels";
 
 const PAGE_SIZE = 8;
 
@@ -127,7 +129,7 @@ export function OrganizerPage(props: OrganizerPageProps) {
                 </TableCell>
                 <TableCell>
                   <div className="flex justify-end gap-2">
-                    <Button asChild variant="outline" size="sm">
+                    <Button asChild variant="secondary" size="sm">
                       <Link
                         to={`/organizer/events/${event.id}/edit`}
                         onClick={(clickEvent) => clickEvent.stopPropagation()}
@@ -250,17 +252,35 @@ export function OrganizerEventDetailPage(props: OrganizerEventDetailPageProps) {
 
       <Card>
         <CardHeader className="flex-row flex-wrap items-start justify-between gap-4">
-          <div>
-            <StatusBadge status={selectedEvent.status} />
+          <div className="min-w-0">
+            <div className="flex flex-wrap gap-2">
+              <StatusBadge status={selectedEvent.status} />
+              <Badge variant="count">
+                {selectedEvent.registration_count}/
+                {selectedEvent.max_participants || "nelimitat"}
+              </Badge>
+            </div>
             <CardTitle className="mt-3 text-2xl">{selectedEvent.title}</CardTitle>
-            <CardDescription>{selectedEvent.description || "Fara descriere."}</CardDescription>
+            <CardDescription className="mt-2 max-w-3xl">
+              {selectedEvent.description || "Fara descriere."}
+            </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline">
-              <Link to={`/organizer/events/${selectedEvent.id}/edit`}>
-                <Pencil />
-                Editeaza
-              </Link>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => navigate(`/organizer/events/${selectedEvent.id}/edit`)}
+            >
+              <Pencil />
+              Editeaza
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void props.updateEventStatus("cancelled")}
+            >
+              <XCircle />
+              Anuleaza
             </Button>
             <Button
               type="button"
@@ -273,14 +293,9 @@ export function OrganizerEventDetailPage(props: OrganizerEventDetailPageProps) {
           </div>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <SummaryTile label="Data" value={formatDateTime(selectedEvent.starts_at)} />
-            <SummaryTile label="Locatie" value={selectedEvent.venue_name || "-"} />
-            <SummaryTile label="Categorie" value={selectedEvent.category_name || "-"} />
-            <SummaryTile label="Participare" value={selectedEvent.participation_mode} />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {(selectedEvent.status === "draft" || selectedEvent.status === "rejected") && (
+          <OrganizerEventInfo event={selectedEvent} />
+          {(selectedEvent.status === "draft" || selectedEvent.status === "rejected") && (
+            <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
                 onClick={() => void props.updateEventStatus("pending_approval")}
@@ -288,18 +303,12 @@ export function OrganizerEventDetailPage(props: OrganizerEventDetailPageProps) {
                 <CheckCircle2 />
                 Trimite spre validare
               </Button>
-            )}
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => void props.updateEventStatus("cancelled")}
-            >
-              Anuleaza
-            </Button>
-          </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
+      <OrganizerResourceList event={selectedEvent} />
       <StatsCard stats={props.stats} />
       <RegistrationsCard
         event={selectedEvent}
@@ -307,6 +316,142 @@ export function OrganizerEventDetailPage(props: OrganizerEventDetailPageProps) {
         checkIn={props.checkIn}
         exportRegistrations={props.exportRegistrations}
       />
+    </div>
+  );
+}
+
+function OrganizerEventInfo({ event }: { event: EventItem }) {
+  return (
+    <dl className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <DetailTile label="Incepe" value={formatReadableDateTime(event.starts_at)} />
+      <DetailTile
+        label="Se termina"
+        value={formatReadableDateTime(event.ends_at || event.starts_at)}
+      />
+      <DetailTile label="Locatie" value={event.venue_name || "-"} />
+      <DetailTile label="Organizator" value={event.creator_full_name} />
+      <DetailTile
+        label="Participare"
+        value={formatParticipationMode(event.participation_mode)}
+      />
+      <DetailTile
+        label="Categorie"
+        value={formatCategoryName(event.category_name) || "-"}
+      />
+      <DetailTile label="Facultate" value={event.faculty_name || "-"} />
+      <DetailTile label="Departament" value={event.department_name || "-"} />
+      <DetailTile
+        label="Inscriere"
+        value={registrationSummary(event)}
+      />
+      <DetailTile label="Intrare" value={event.is_free ? "Libera" : "Cu plata"} />
+      <DetailTile
+        label="Participanti"
+        value={`${event.registration_count}/${event.max_participants || "nelimitat"}`}
+      />
+      <DetailTile label="Creat la" value={formatDateTime(event.created_at)} />
+      <DetailTile
+        label="Link inscriere"
+        value={
+          event.registration_url ? (
+            <a
+              className="text-[#254591] hover:underline"
+              href={event.registration_url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Deschide linkul
+            </a>
+          ) : (
+            "-"
+          )
+        }
+      />
+    </dl>
+  );
+}
+
+function OrganizerResourceList({ event }: { event: EventItem }) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardTitle>Materiale</CardTitle>
+          <CardDescription>
+            {formatResourceCount(event.materials.length, "material atasat", "materiale atasate")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ul className="grid gap-2">
+            {event.materials.map((material) => (
+              <li
+                key={material.id}
+                className="flex items-center justify-between gap-3 rounded-md border border-[#d7dfeb] p-3"
+              >
+                <a
+                  className="min-w-0 truncate text-sm font-medium text-[#254591]"
+                  href={material.file_url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {material.title}
+                </a>
+                <span className="shrink-0 text-xs text-[#667085]">
+                  {material.material_type}
+                </span>
+              </li>
+            ))}
+            {event.materials.length === 0 && (
+              <li className="text-sm text-[#667085]">Nu exista materiale.</li>
+            )}
+          </ul>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Sponsori</CardTitle>
+          <CardDescription>
+            {formatResourceCount(event.sponsors.length, "sponsor atasat", "sponsori atasati")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ul className="grid gap-2">
+            {event.sponsors.map((sponsor) => (
+              <li
+                key={sponsor.id}
+                className="flex items-center justify-between gap-3 rounded-md border border-[#d7dfeb] p-3"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  {sponsor.logo_url && (
+                    <img
+                      className="h-9 w-9 rounded border border-[#d7dfeb] object-contain"
+                      src={sponsor.logo_url}
+                      alt=""
+                    />
+                  )}
+                  <span className="truncate text-sm font-medium text-[#192041]">
+                    {sponsor.name}
+                  </span>
+                </div>
+                {sponsor.website_url && (
+                  <a
+                    className="shrink-0 text-sm text-[#254591] hover:underline"
+                    href={sponsor.website_url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    website
+                  </a>
+                )}
+              </li>
+            ))}
+            {event.sponsors.length === 0 && (
+              <li className="text-sm text-[#667085]">Nu exista sponsori.</li>
+            )}
+          </ul>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -345,7 +490,7 @@ function RegistrationsCard(props: {
         </div>
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           onClick={() => void props.exportRegistrations(props.event.id)}
         >
           <Download />
@@ -378,7 +523,7 @@ function RegistrationsCard(props: {
                   <div className="flex justify-end">
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="secondary"
                       size="sm"
                       disabled={registration.status === "checked_in"}
                       onClick={() =>
@@ -431,6 +576,56 @@ function SummaryTile(props: { label: string; value: string | number }) {
       <strong className="mt-1 block text-lg text-[#192041]">{props.value}</strong>
     </div>
   );
+}
+
+function DetailTile(props: { label: string; value: ReactNode }) {
+  return (
+    <div className="rounded-md border border-[#d7dfeb] bg-[#fbfcff] px-4 py-3">
+      <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#667085]">
+        {props.label}
+      </dt>
+      <dd className="mt-1 break-words text-sm font-medium text-[#192041]">
+        {props.value}
+      </dd>
+    </div>
+  );
+}
+
+function registrationSummary(event: EventItem): string {
+  if (!event.registration_required) {
+    return "Nu este necesara";
+  }
+
+  return event.registration_url ? "Necesara, link extern" : "Necesara";
+}
+
+function formatResourceCount(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function formatReadableDateTime(value: string | null): string {
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+  return `${formatLongDate(date)}, ora ${formatTime(date)}`;
+}
+
+function formatLongDate(date: Date): string {
+  return new Intl.DateTimeFormat("ro-RO", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
+function formatTime(date: Date): string {
+  return new Intl.DateTimeFormat("ro-RO", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
 function canManage(user: User | null): boolean {

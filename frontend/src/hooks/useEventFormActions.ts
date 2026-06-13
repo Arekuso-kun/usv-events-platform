@@ -101,7 +101,7 @@ export function useEventFormActions(options: UseEventFormActionsOptions) {
         reloadManagedEvents(),
         user?.role === "admin" ? reloadAdmin() : Promise.resolve(),
       ]);
-      navigate(`/organizer/events/${created.id}/edit`);
+      navigate(`/organizer/events/${created.id}`);
     } catch (requestError) {
       setError(getErrorMessage(requestError));
     } finally {

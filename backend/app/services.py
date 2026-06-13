@@ -315,13 +315,14 @@ class SupabaseService(AuthService, EventsService, AdminService):
     def list_managed_events(self, current_user: UserResponse) -> list[EventResponse]:
         self._require_roles(current_user, {"organizer", "admin"})
         if current_user.role == "admin":
-            rows = self._select_all("events", order_by="starts_at")
+            rows = self._select_all("events", order_by="created_at", order_desc=True)
         else:
             rows = self._select_rows(
                 "events",
                 column="creator_id",
                 values=[current_user.id],
-                order_by="starts_at",
+                order_by="created_at",
+                order_desc=True,
             )
         return self._serialize_events(rows)
 
@@ -1597,10 +1598,11 @@ class SupabaseService(AuthService, EventsService, AdminService):
         *,
         columns: str = "*",
         order_by: str | None = None,
+        order_desc: bool = False,
     ) -> list[dict[str, Any]]:
         query = self._client().table(self._table_name(table_key)).select(columns)
         if order_by:
-            query = query.order(order_by)
+            query = query.order(order_by, desc=order_desc)
         return self._execute_select(query, table_key)
 
     def _select_rows(
@@ -1611,6 +1613,7 @@ class SupabaseService(AuthService, EventsService, AdminService):
         values: list[str],
         columns: str = "*",
         order_by: str | None = None,
+        order_desc: bool = False,
     ) -> list[dict[str, Any]]:
         if not values:
             return []
@@ -1621,7 +1624,7 @@ class SupabaseService(AuthService, EventsService, AdminService):
             .in_(column, values)
         )
         if order_by:
-            query = query.order(order_by)
+            query = query.order(order_by, desc=order_desc)
         return self._execute_select(query, table_key)
 
     def _execute_select(self, query: Any, table_key: str) -> list[dict[str, Any]]:

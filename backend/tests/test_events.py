@@ -65,3 +65,18 @@ def test_event_update_delete_and_calendar_exports(
 
     missing_response = client.get(f"/events/{event_id}")
     assert missing_response.status_code == 404
+
+
+def test_managed_events_are_ordered_by_latest_created(
+    client: TestClient, auth_headers, create_event
+):
+    create_event(client, title="First Event")
+    create_event(client, title="Second Event")
+
+    response = client.get("/events/manage/mine", headers=auth_headers())
+
+    assert response.status_code == 200
+    assert [event["title"] for event in response.json()] == [
+        "Second Event",
+        "First Event",
+    ]

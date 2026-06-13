@@ -13,6 +13,7 @@ function Select(props: {
   value: string;
   placeholder: string;
   options: SelectOption[];
+  className?: string;
   onValueChange: (value: string) => void;
 }) {
   return (
@@ -23,7 +24,10 @@ function Select(props: {
       }
     >
       <SelectPrimitive.Trigger
-        className="flex h-11 w-full items-center justify-between rounded-md border border-[#d7dfeb] bg-white px-3 text-sm text-[#192041] shadow-xs outline-none transition-colors focus:border-[#254591] focus:ring-2 focus:ring-[#254591]/20 disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-[#667085]"
+        className={cn(
+          "flex h-11 w-full items-center justify-between rounded-md border border-[#d7dfeb] bg-white px-3 text-sm text-[#192041] shadow-xs outline-none transition-colors focus:border-[#254591] focus:ring-2 focus:ring-[#254591]/20 disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-[#667085]",
+          props.className,
+        )}
       >
         <SelectPrimitive.Value placeholder={props.placeholder} />
         <SelectPrimitive.Icon asChild>

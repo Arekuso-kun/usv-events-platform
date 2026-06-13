@@ -14,14 +14,14 @@ export function AuthPanel(props: AuthPanelProps) {
   }
 
   return (
-    <section className="grid gap-3 border-t border-[#d7dfeb] pt-4">
-      <div className="flex items-center gap-3 rounded-md p-3">
+    <section className="grid min-w-0 gap-3 border-t border-[#d7dfeb] pt-4">
+      <div className="flex min-w-0 items-center gap-3 rounded-md p-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#254591] text-sm font-semibold text-white">
           {userInitials(props.user.full_name)}
         </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <strong className="truncate text-sm text-[#192041]">
+        <div className="min-w-0 flex-1 overflow-hidden">
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+            <strong className="min-w-0 truncate text-sm text-[#192041]">
               {props.user.full_name}
             </strong>
             <Badge variant="neutral" className="shrink-0">

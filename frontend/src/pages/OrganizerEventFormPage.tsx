@@ -91,6 +91,10 @@ export function OrganizerEventFormPage(props: OrganizerEventFormPageProps) {
     props.user && (props.user.role === "organizer" || props.user.role === "admin");
   const minimumEventDateTime =
     props.mode === "create" ? getCurrentDateTimeValue() : "";
+  const registrationDeadlineMax = subtractMinutesFromLocalDateTime(
+    props.eventForm.starts_at,
+    1,
+  );
 
   useEffect(() => {
     if (mode === "create") {
@@ -149,7 +153,7 @@ export function OrganizerEventFormPage(props: OrganizerEventFormPageProps) {
                 : props.updateEvent(event!.id, formEvent)
             }
           >
-            <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+            <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
               <div className="grid gap-3">
                 <Field label="Titlu">
                   <Input
@@ -168,6 +172,15 @@ export function OrganizerEventFormPage(props: OrganizerEventFormPageProps) {
                       props.setEventField("description", formEvent.target.value)
                     }
                     placeholder="Descriere"
+                  />
+                </Field>
+                <Field label="Link inscriere">
+                  <Input
+                    value={props.eventForm.registration_url}
+                    onChange={(formEvent) =>
+                      props.setEventField("registration_url", formEvent.target.value)
+                    }
+                    placeholder="Link inscriere"
                   />
                 </Field>
               </div>
@@ -211,13 +224,15 @@ export function OrganizerEventFormPage(props: OrganizerEventFormPageProps) {
                       ]}
                     />
                   </Field>
-                  <Field label="Link inscriere">
-                    <Input
-                      value={props.eventForm.registration_url}
-                      onChange={(formEvent) =>
-                        props.setEventField("registration_url", formEvent.target.value)
+                  <Field label="Deadline inscriere">
+                    <DateTimeField
+                      value={props.eventForm.registration_deadline}
+                      onChange={(value) =>
+                        props.setEventField("registration_deadline", value)
                       }
-                      placeholder="Link inscriere"
+                      placeholder="Deadline inscriere"
+                      minValue={minimumEventDateTime}
+                      maxValue={registrationDeadlineMax}
                     />
                   </Field>
                   <Field label="Max participanti">
@@ -232,20 +247,21 @@ export function OrganizerEventFormPage(props: OrganizerEventFormPageProps) {
                     />
                   </Field>
                 </div>
-                <div className="flex flex-wrap gap-6">
-                  <label className="flex items-center gap-2 text-sm text-[#192041]">
+                <div className="flex flex-wrap gap-3 rounded-md border border-[#d7dfeb] bg-[#fbfcff] p-3">
+                  <label className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-[#192041]">
                     <Checkbox
                       checked={props.eventForm.registration_required}
-                      onCheckedChange={(checked) =>
-                        props.setEventField(
-                          "registration_required",
-                          checked === true,
-                        )
-                      }
+                      onCheckedChange={(checked) => {
+                        const nextValue = checked === true;
+                        props.setEventField("registration_required", nextValue);
+                        if (!nextValue) {
+                          props.setEventField("registration_deadline", "");
+                        }
+                      }}
                     />
                     Necesita inscriere
                   </label>
-                  <label className="flex items-center gap-2 text-sm text-[#192041]">
+                  <label className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-[#192041]">
                     <Checkbox
                       checked={props.eventForm.is_free}
                       onCheckedChange={(checked) =>
@@ -258,7 +274,7 @@ export function OrganizerEventFormPage(props: OrganizerEventFormPageProps) {
               </div>
             </div>
 
-            <div className="grid gap-3 lg:grid-cols-[minmax(18rem,1.1fr)_minmax(14rem,0.6fr)_minmax(0,2fr)]">
+            <div className="grid gap-3 lg:grid-cols-[minmax(18rem,1.25fr)_minmax(14rem,0.6fr)_minmax(0,2fr)]">
               <LookupField
                 label="Locatie"
                 value={props.eventForm.venue_id}
@@ -845,6 +861,21 @@ function getCurrentDateTimeValue(): string {
   const hour = String(now.getHours()).padStart(2, "0");
   const minute = String(now.getMinutes()).padStart(2, "0");
 
+  return `${year}-${month}-${day}T${hour}:${minute}`;
+}
+
+function subtractMinutesFromLocalDateTime(value: string, minutes: number): string {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+  date.setMinutes(date.getMinutes() - minutes);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hour = String(date.getHours()).padStart(2, "0");
+  const minute = String(date.getMinutes()).padStart(2, "0");
   return `${year}-${month}-${day}T${hour}:${minute}`;
 }
 

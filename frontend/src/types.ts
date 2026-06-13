@@ -133,6 +133,7 @@ export interface EventFormState {
   department_id: string;
   registration_required: boolean;
   registration_url: string;
+  registration_deadline: string;
   max_participants: string;
   is_free: boolean;
 }

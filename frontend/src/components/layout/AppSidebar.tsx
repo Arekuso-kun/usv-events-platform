@@ -29,7 +29,7 @@ interface AppSidebarProps {
 
 export function AppSidebar(props: AppSidebarProps) {
   return (
-    <aside className="flex flex-col border-r border-[#d7dfeb] bg-white/95 p-4 text-[#192041] shadow-[8px_0_24px_rgba(25,32,65,0.04)] lg:sticky lg:top-0 lg:h-screen">
+    <aside className="min-w-0 overflow-hidden flex flex-col border-r border-[#d7dfeb] bg-white/95 p-4 text-[#192041] shadow-[8px_0_24px_rgba(25,32,65,0.04)] lg:sticky lg:top-0 lg:h-screen">
       <div className="px-1 py-2">
         <div className="flex min-h-12 items-center gap-3">
           <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md">

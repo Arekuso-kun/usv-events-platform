@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
+from app.services import SupabaseService
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 
@@ -42,3 +46,34 @@ def test_registration_management_stats_and_csv_export(
     stats_response = client.get(f"/events/{event_id}/stats", headers=auth_headers())
     assert stats_response.status_code == 200
     assert stats_response.json()["checked_in_count"] == 1
+
+
+def test_registration_deadline_passed_helper():
+    now = datetime(2026, 6, 13, 12, tzinfo=timezone.utc)
+
+    assert not SupabaseService._registration_deadline_passed(None, now)
+    assert not SupabaseService._registration_deadline_passed(
+        now + timedelta(minutes=1),
+        now,
+    )
+    assert SupabaseService._registration_deadline_passed(now, now)
+    assert SupabaseService._registration_deadline_passed(
+        (now - timedelta(minutes=1)).isoformat(),
+        now,
+    )
+
+
+def test_registration_deadline_must_be_before_event_start():
+    starts_at = datetime(2026, 6, 13, 12, tzinfo=timezone.utc)
+
+    SupabaseService._validate_registration_deadline(
+        starts_at,
+        starts_at - timedelta(minutes=1),
+    )
+
+    try:
+        SupabaseService._validate_registration_deadline(starts_at, starts_at)
+    except HTTPException as exc:
+        assert exc.status_code == 422
+    else:
+        raise AssertionError("Expected invalid registration deadline to be rejected.")

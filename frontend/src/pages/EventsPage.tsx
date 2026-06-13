@@ -339,6 +339,10 @@ export function EventDetailPage(props: EventDetailPageProps) {
               label="Inscriere"
               value={event.registration_required ? "Necesara" : "Nu este necesara"}
             />
+            <DetailItem
+              label="Deadline inscriere"
+              value={formatReadableDateTime(event.registration_deadline)}
+            />
           </dl>
 
           <EventActionPanel
@@ -642,6 +646,10 @@ function EventActionPanel(props: {
   user: User | null;
   registerForEvent: (id: string, alreadyRegistered?: boolean) => Promise<void>;
 }) {
+  const registrationClosed = isRegistrationDeadlinePassed(
+    props.event.registration_deadline,
+  );
+
   return (
     <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,0.36fr)] lg:items-end">
       <section className="grid content-end gap-3">
@@ -659,9 +667,17 @@ function EventActionPanel(props: {
                   Boolean(props.myRegistration),
                 )
               }
-              disabled={Boolean(props.myRegistration) || props.event.is_full}
+              disabled={
+                Boolean(props.myRegistration) ||
+                props.event.is_full ||
+                registrationClosed
+              }
             >
-              {props.myRegistration ? "Inscris" : "Inscriere"}
+              {props.myRegistration
+                ? "Inscris"
+                : registrationClosed
+                  ? "Inscriere inchisa"
+                  : "Inscriere"}
             </Button>
           )}
           {props.event.registration_url && (
@@ -759,6 +775,13 @@ function EventQrCode({ event }: { event: EventItem }) {
       </div>
     </section>
   );
+}
+
+function isRegistrationDeadlinePassed(value: string | null): boolean {
+  if (!value) {
+    return false;
+  }
+  return new Date(value).getTime() <= Date.now();
 }
 
 function formatReadableDateTime(value: string | null): string {

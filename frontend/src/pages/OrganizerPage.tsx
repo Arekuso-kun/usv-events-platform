@@ -344,6 +344,10 @@ function OrganizerEventInfo({ event }: { event: EventItem }) {
         label="Inscriere"
         value={registrationSummary(event)}
       />
+      <DetailTile
+        label="Deadline inscriere"
+        value={formatReadableDateTime(event.registration_deadline)}
+      />
       <DetailTile label="Intrare" value={event.is_free ? "Libera" : "Cu plata"} />
       <DetailTile
         label="Participanti"

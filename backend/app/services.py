@@ -39,6 +39,8 @@ from .schemas import (
 )
 from .supabase_client import get_supabase_anon_client, get_supabase_service_client
 
+STUDENT_EMAIL_DOMAIN = "@student.usv.ro"
+
 
 class AuthService(Protocol):
     """Authentication contract used by FastAPI routers."""
@@ -195,7 +197,7 @@ class SupabaseService(AuthService, EventsService, AdminService):
                 "email": email,
                 "full_name": full_name,
                 "role": "student",
-                "student_domain_verified": email.endswith("@student.usv.ro"),
+                "student_domain_verified": self._is_student_email(email),
             }
         )
         return self.login(email, password)
@@ -256,11 +258,6 @@ class SupabaseService(AuthService, EventsService, AdminService):
             ) from exc
 
         token_response = self._build_token_response(response)
-        if not token_response.user.email.endswith("@student.usv.ro"):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Google login is restricted to @student.usv.ro accounts.",
-            )
         self._upsert_profile(
             {
                 "id": token_response.user.id,
@@ -358,6 +355,14 @@ class SupabaseService(AuthService, EventsService, AdminService):
         self._require_event_manager(event, current_user)
 
         update_payload = self._event_payload(payload.model_dump(exclude_unset=True))
+        self._validate_registration_deadline(
+            update_payload.get("starts_at", event.get("starts_at")),
+            (
+                update_payload["registration_deadline"]
+                if "registration_deadline" in update_payload
+                else event.get("registration_deadline")
+            ),
+        )
         if current_user.role != "admin" and update_payload.get("status") in {
             "published",
             "rejected",
@@ -399,6 +404,11 @@ class SupabaseService(AuthService, EventsService, AdminService):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Only published events accept registrations.",
+            )
+        if self._registration_deadline_passed(event.get("registration_deadline")):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Registration deadline has passed.",
             )
 
         existing_registration = (
@@ -1004,6 +1014,8 @@ class SupabaseService(AuthService, EventsService, AdminService):
         app_metadata = self._as_dict(getattr(user, "app_metadata", None))
         user_id = str(getattr(user, "id"))
         email = str(getattr(user, "email"))
+        auth_provider = self._auth_provider(app_metadata)
+        self._enforce_google_student_domain(email, app_metadata)
         profile = self._get_profile(user_id)
         full_name = (
             (profile or {}).get("full_name")
@@ -1018,7 +1030,7 @@ class SupabaseService(AuthService, EventsService, AdminService):
                 "email": email,
                 "full_name": full_name,
                 "role": "student",
-                "student_domain_verified": email.endswith("@student.usv.ro"),
+                "student_domain_verified": self._is_student_email(email),
             }
             self._upsert_profile(profile)
 
@@ -1027,7 +1039,7 @@ class SupabaseService(AuthService, EventsService, AdminService):
             email=email,
             full_name=str(full_name),
             avatar_url=metadata.get("avatar_url") or metadata.get("picture"),
-            auth_provider=str(app_metadata.get("provider") or "supabase"),
+            auth_provider=auth_provider,
             role=profile.get("role") or "student",
             faculty_id=self._optional_str(profile.get("faculty_id")),
             department_id=self._optional_str(profile.get("department_id")),
@@ -1049,6 +1061,45 @@ class SupabaseService(AuthService, EventsService, AdminService):
             department_id=self._optional_str(row.get("department_id")),
             student_domain_verified=bool(row.get("student_domain_verified")),
             created_at=self._parse_datetime(row.get("created_at") or datetime.now(UTC)),
+        )
+
+    @classmethod
+    def _is_student_email(cls, email: str) -> bool:
+        return email.strip().lower().endswith(STUDENT_EMAIL_DOMAIN)
+
+    @classmethod
+    def _auth_provider(cls, app_metadata: dict[str, Any]) -> str:
+        providers = cls._auth_providers(app_metadata)
+        if "google" in providers:
+            return "google"
+        return str(app_metadata.get("provider") or "supabase")
+
+    @classmethod
+    def _auth_providers(cls, app_metadata: dict[str, Any]) -> set[str]:
+        providers: set[str] = set()
+        provider = app_metadata.get("provider")
+        if provider:
+            providers.add(str(provider).lower())
+
+        provider_list = app_metadata.get("providers")
+        if isinstance(provider_list, list):
+            providers.update(str(item).lower() for item in provider_list)
+        elif provider_list:
+            providers.add(str(provider_list).lower())
+
+        return providers
+
+    @classmethod
+    def _enforce_google_student_domain(
+        cls, email: str, app_metadata: dict[str, Any]
+    ) -> None:
+        if "google" not in cls._auth_providers(app_metadata):
+            return
+        if cls._is_student_email(email):
+            return
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Google login is restricted to @student.usv.ro accounts.",
         )
 
     def _serialize_events(self, rows: list[dict[str, Any]]) -> list[EventResponse]:
@@ -1774,6 +1825,26 @@ class SupabaseService(AuthService, EventsService, AdminService):
         if parsed.tzinfo is None or parsed.utcoffset() is None:
             return parsed.replace(tzinfo=UTC)
         return parsed
+
+    @classmethod
+    def _registration_deadline_passed(
+        cls, value: Any, now: datetime | None = None
+    ) -> bool:
+        if not value:
+            return False
+        return cls._parse_datetime(value) <= (now or datetime.now(UTC))
+
+    @classmethod
+    def _validate_registration_deadline(
+        cls, starts_at: Any, registration_deadline: Any
+    ) -> None:
+        if not registration_deadline:
+            return
+        if cls._parse_datetime(registration_deadline) >= cls._parse_datetime(starts_at):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Registration deadline must be before the event start date.",
+            )
 
     @staticmethod
     def _format_ics_datetime(value: datetime) -> str:

@@ -47,11 +47,12 @@ export function useAuth(options: UseAuthOptions) {
           headers: { Authorization: `Bearer ${nextToken}` },
         });
         setUser(response.data);
-      } catch {
+      } catch (requestError) {
+        setError(getErrorMessage(requestError));
         logout();
       }
     },
-    [logout],
+    [logout, setError],
   );
 
   const handleOAuthRedirect = useCallback(() => {

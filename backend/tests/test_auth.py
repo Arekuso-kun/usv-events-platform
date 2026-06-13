@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import pytest
+from app.services import SupabaseService
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 
@@ -55,3 +58,25 @@ def test_google_start_redirects_to_oauth_provider(client: TestClient):
 
     assert response.status_code == 307
     assert response.headers["location"] == "http://localhost:5173"
+
+
+def test_google_auth_domain_guard_accepts_only_student_subdomain():
+    SupabaseService._enforce_google_student_domain(
+        "student@student.usv.ro",
+        {"provider": "google"},
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        SupabaseService._enforce_google_student_domain(
+            "person@gmail.com",
+            {"provider": "email", "providers": ["google"]},
+        )
+
+    assert exc_info.value.status_code == 403
+
+
+def test_google_auth_domain_guard_does_not_block_password_accounts():
+    SupabaseService._enforce_google_student_domain(
+        "organizer@usv.ro",
+        {"provider": "email", "providers": ["email"]},
+    )

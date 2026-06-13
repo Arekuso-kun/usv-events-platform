@@ -357,6 +357,10 @@ function PendingEventDetailsDialog(props: {
               label="Inscriere"
               value={registrationLabel(event)}
             />
+            <AdminDetailItem
+              label="Deadline inscriere"
+              value={formatDateTime(event.registration_deadline)}
+            />
           </div>
 
           <div className="rounded-md border border-[#d7dfeb] bg-[#fbfcff] p-3">

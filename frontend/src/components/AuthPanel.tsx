@@ -24,7 +24,7 @@ export function AuthPanel(props: AuthPanelProps) {
             <strong className="truncate text-sm text-[#192041]">
               {props.user.full_name}
             </strong>
-            <Badge variant="secondary" className="shrink-0 px-2 py-0 text-[10px]">
+            <Badge variant="neutral" className="shrink-0">
               {roleLabel(props.user.role)}
             </Badge>
           </div>

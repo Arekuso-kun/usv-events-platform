@@ -25,7 +25,10 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
-import { StatusBadge } from "../components/StatusBadge";
+import {
+  RegistrationStatusBadge,
+  StatusBadge,
+} from "../components/StatusBadge";
 import type {
   EventItem,
   EventStats,
@@ -367,7 +370,9 @@ function RegistrationsCard(props: {
                   {registration.user_name || "-"}
                 </TableCell>
                 <TableCell>{registration.user_email || "-"}</TableCell>
-                <TableCell>{registration.status}</TableCell>
+                <TableCell>
+                  <RegistrationStatusBadge status={registration.status} />
+                </TableCell>
                 <TableCell>{formatDateTime(registration.registered_at)}</TableCell>
                 <TableCell>
                   <div className="flex justify-end">

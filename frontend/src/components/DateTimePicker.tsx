@@ -1,5 +1,5 @@
-import { CalendarDays, ChevronLeft, ChevronRight, Clock } from "lucide-react";
-import { useMemo, useState } from "react";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "./ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Select } from "./ui/select";
@@ -26,8 +26,12 @@ export function DateTimePicker(props: {
   value: string;
   placeholder: string;
   required?: boolean;
+  minValue?: string;
+  maxValue?: string;
   onChange: (value: string) => void;
 }) {
+  const minValue = normalizeDateTimeValue(props.minValue);
+  const maxValue = normalizeDateTimeValue(props.maxValue);
   const { date, time } = splitDateTime(props.value);
   const [open, setOpen] = useState(false);
   const [draftTime, setDraftTime] = useState(time || "09:00");
@@ -41,7 +45,35 @@ export function DateTimePicker(props: {
   const minuteValues = minuteOptions.includes(selectedMinute)
     ? minuteOptions
     : [...minuteOptions, selectedMinute].sort();
+  const availableHourOptions = date
+    ? getAvailableHourOptions(date, minuteValues, minValue, maxValue)
+    : hourOptions;
+  const safeSelectedHour = availableHourOptions.includes(selectedHour)
+    ? selectedHour
+    : (availableHourOptions[0] ?? selectedHour);
+  const availableMinuteOptions = date
+    ? getAvailableMinuteOptions(
+        date,
+        safeSelectedHour,
+        minuteValues,
+        minValue,
+        maxValue,
+      )
+    : minuteValues;
+  const safeSelectedMinute = availableMinuteOptions.includes(selectedMinute)
+    ? selectedMinute
+    : (availableMinuteOptions[0] ?? selectedMinute);
   const days = useMemo(() => buildMonthGrid(visibleMonth), [visibleMonth]);
+  const canMoveToPreviousMonth = monthIntersectsRange(
+    new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1),
+    minValue,
+    maxValue,
+  );
+  const canMoveToNextMonth = monthIntersectsRange(
+    new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1),
+    minValue,
+    maxValue,
+  );
 
   const label = date
     ? `${valueFormatter.format(new Date(`${date}T12:00:00`))}, ${selectedTime}`
@@ -54,14 +86,25 @@ export function DateTimePicker(props: {
   }
 
   function selectDay(nextDate: Date) {
-    props.onChange(joinDateTime(toDateInputValue(nextDate), selectedTime));
+    props.onChange(
+      clampDateTime(
+        joinDateTime(toDateInputValue(nextDate), selectedTime),
+        minValue,
+        maxValue,
+      ),
+    );
   }
 
   function selectTime(hour: string, minute: string) {
     const nextTime = `${hour}:${minute}`;
     setDraftTime(nextTime);
     if (date) {
-      props.onChange(joinDateTime(date, nextTime));
+      const nextValue = clampDateTime(joinDateTime(date, nextTime), minValue, maxValue);
+      props.onChange(nextValue);
+      const nextParts = splitDateTime(nextValue);
+      if (nextParts.time) {
+        setDraftTime(nextParts.time);
+      }
     }
   }
 
@@ -69,6 +112,17 @@ export function DateTimePicker(props: {
     props.onChange("");
     setOpen(false);
   }
+
+  useEffect(() => {
+    if (!props.value) {
+      return;
+    }
+
+    const nextValue = clampDateTime(props.value, minValue, maxValue);
+    if (nextValue && nextValue !== props.value) {
+      props.onChange(nextValue);
+    }
+  }, [maxValue, minValue, props.value, props.onChange]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -105,6 +159,7 @@ export function DateTimePicker(props: {
               variant="ghost"
               size="icon"
               aria-label="Luna anterioara"
+              disabled={!canMoveToPreviousMonth}
               onClick={() => moveMonth(-1)}
             >
               <ChevronLeft />
@@ -117,6 +172,7 @@ export function DateTimePicker(props: {
               variant="ghost"
               size="icon"
               aria-label="Luna urmatoare"
+              disabled={!canMoveToNextMonth}
               onClick={() => moveMonth(1)}
             >
               <ChevronRight />
@@ -133,14 +189,17 @@ export function DateTimePicker(props: {
             {days.map((day) => {
               const value = toDateInputValue(day.date);
               const selected = value === date;
+              const disabled = dayIsOutsideRange(value, minValue, maxValue);
               return (
                 <Button
                   type="button"
                   key={value}
                   variant="ghost"
+                  disabled={disabled}
                   className={[
                     "grid h-9 place-items-center rounded-md text-sm transition-colors",
                     day.inMonth ? "text-[#192041]" : "text-[#b0b7c3]",
+                    disabled ? "text-[#b0b7c3]" : "",
                     selected
                       ? "bg-[#254591] text-white"
                       : "hover:bg-[rgba(134,193,234,0.22)] hover:text-[#254591]",
@@ -154,28 +213,43 @@ export function DateTimePicker(props: {
           </div>
 
           <div className="mt-4 grid gap-2 rounded-md border border-[#d7dfeb] bg-[#fbfcff] p-3">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Clock className="size-4 text-[#254591]" />
-              Ora evenimentului
-            </div>
             <div className="grid grid-cols-2 gap-2">
               <TimeSelect
                 label="Ora"
-                value={selectedHour}
-                options={hourOptions}
-                onChange={(hour) => selectTime(hour, selectedMinute)}
+                value={safeSelectedHour}
+                options={availableHourOptions}
+                onChange={(hour) => {
+                  const nextMinuteOptions = date
+                    ? getAvailableMinuteOptions(
+                        date,
+                        hour,
+                        minuteValues,
+                        minValue,
+                        maxValue,
+                      )
+                    : minuteValues;
+                  const nextMinute = nextMinuteOptions.includes(safeSelectedMinute)
+                    ? safeSelectedMinute
+                    : (nextMinuteOptions[0] ?? safeSelectedMinute);
+                  selectTime(hour, nextMinute);
+                }}
               />
               <TimeSelect
                 label="Minut"
-                value={selectedMinute}
-                options={minuteValues}
-                onChange={(minute) => selectTime(selectedHour, minute)}
+                value={safeSelectedMinute}
+                options={availableMinuteOptions}
+                onChange={(minute) => selectTime(safeSelectedHour, minute)}
               />
             </div>
           </div>
 
           <div className="mt-3 flex justify-between gap-2">
-            <Button type="button" variant="ghost" onClick={clearValue}>
+            <Button
+              type="button"
+              variant="secondary"
+              className="bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800"
+              onClick={clearValue}
+            >
               Sterge
             </Button>
             <Button type="button" onClick={() => setOpen(false)}>
@@ -213,6 +287,106 @@ function splitDateTime(value: string): { date: string; time: string } {
 
 function joinDateTime(date: string, time: string): string {
   return `${date}T${time || "09:00"}`;
+}
+
+function normalizeDateTimeValue(value?: string): string {
+  if (!value) {
+    return "";
+  }
+
+  const { date, time } = splitDateTime(value);
+  if (!date) {
+    return "";
+  }
+
+  return joinDateTime(date, time || "00:00");
+}
+
+function clampDateTime(value: string, minValue: string, maxValue: string): string {
+  const normalizedValue = normalizeDateTimeValue(value);
+  if (!normalizedValue) {
+    return "";
+  }
+
+  if (minValue && normalizedValue < minValue) {
+    return minValue;
+  }
+  if (maxValue && normalizedValue > maxValue) {
+    return maxValue;
+  }
+  return normalizedValue;
+}
+
+function isDateTimeAllowed(value: string, minValue: string, maxValue: string): boolean {
+  const normalizedValue = normalizeDateTimeValue(value);
+  if (!normalizedValue) {
+    return true;
+  }
+
+  if (minValue && normalizedValue < minValue) {
+    return false;
+  }
+  if (maxValue && normalizedValue > maxValue) {
+    return false;
+  }
+  return true;
+}
+
+function dayIsOutsideRange(date: string, minValue: string, maxValue: string): boolean {
+  const dayStart = joinDateTime(date, "00:00");
+  const dayEnd = joinDateTime(date, "23:59");
+
+  if (minValue && dayEnd < minValue) {
+    return true;
+  }
+  if (maxValue && dayStart > maxValue) {
+    return true;
+  }
+  return false;
+}
+
+function monthIntersectsRange(month: Date, minValue: string, maxValue: string): boolean {
+  const firstDate = toDateInputValue(
+    new Date(month.getFullYear(), month.getMonth(), 1),
+  );
+  const lastDate = toDateInputValue(
+    new Date(month.getFullYear(), month.getMonth() + 1, 0),
+  );
+  const monthStart = joinDateTime(firstDate, "00:00");
+  const monthEnd = joinDateTime(lastDate, "23:59");
+
+  if (minValue && monthEnd < minValue) {
+    return false;
+  }
+  if (maxValue && monthStart > maxValue) {
+    return false;
+  }
+  return true;
+}
+
+function getAvailableHourOptions(
+  date: string,
+  minutes: string[],
+  minValue: string,
+  maxValue: string,
+): string[] {
+  return hourOptions.filter((hour) =>
+    minutes.some((minute) =>
+      isDateTimeAllowed(joinDateTime(date, `${hour}:${minute}`), minValue, maxValue),
+    ),
+  );
+}
+
+function getAvailableMinuteOptions(
+  date: string,
+  hour: string,
+  minutes: string[],
+  minValue: string,
+  maxValue: string,
+): string[] {
+  return minutes.filter((minute) =>
+    isDateTimeAllowed(joinDateTime(date, `${hour}:${minute}`), minValue, maxValue),
+  );
 }
 
 function buildMonthGrid(month: Date) {

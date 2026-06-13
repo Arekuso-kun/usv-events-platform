@@ -88,6 +88,8 @@ export function OrganizerEventFormPage(props: OrganizerEventFormPageProps) {
   const [sponsorModalOpen, setSponsorModalOpen] = useState(false);
   const canUsePage =
     props.user && (props.user.role === "organizer" || props.user.role === "admin");
+  const minimumEventDateTime =
+    props.mode === "create" ? getCurrentDateTimeValue() : "";
 
   useEffect(() => {
     if (mode === "create") {
@@ -176,6 +178,8 @@ export function OrganizerEventFormPage(props: OrganizerEventFormPageProps) {
                       value={props.eventForm.starts_at}
                       onChange={(value) => props.setEventField("starts_at", value)}
                       placeholder="Data inceput"
+                      minValue={minimumEventDateTime}
+                      maxValue={props.eventForm.ends_at}
                       required
                     />
                   </Field>
@@ -184,6 +188,7 @@ export function OrganizerEventFormPage(props: OrganizerEventFormPageProps) {
                       value={props.eventForm.ends_at}
                       onChange={(value) => props.setEventField("ends_at", value)}
                       placeholder="Data final"
+                      minValue={props.eventForm.starts_at || minimumEventDateTime}
                     />
                   </Field>
                 </div>
@@ -812,6 +817,8 @@ function DateTimeField(props: {
   value: string;
   placeholder: string;
   required?: boolean;
+  minValue?: string;
+  maxValue?: string;
   onChange: (value: string) => void;
 }) {
   return (
@@ -819,9 +826,22 @@ function DateTimeField(props: {
       value={props.value}
       placeholder={props.placeholder}
       required={props.required}
+      minValue={props.minValue}
+      maxValue={props.maxValue}
       onChange={props.onChange}
     />
   );
+}
+
+function getCurrentDateTimeValue(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const hour = String(now.getHours()).padStart(2, "0");
+  const minute = String(now.getMinutes()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hour}:${minute}`;
 }
 
 function stripExtension(fileName: string): string {

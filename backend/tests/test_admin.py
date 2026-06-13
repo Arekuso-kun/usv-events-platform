@@ -41,4 +41,8 @@ def test_admin_approval_user_management_and_summary_report(
 
     report_response = client.get("/admin/reports/summary", headers=auth_headers())
     assert report_response.status_code == 200
-    assert report_response.json()["registrations_total"] == 3
+    report = report_response.json()
+    assert report["registrations_total"] == 3
+    assert report["average_participation"] == 3
+    assert report["events_by_month"] == [{"month": "2026-04", "count": 1}]
+    assert report["events_by_organizer"][0]["count"] == 1

@@ -529,7 +529,21 @@ class FakeAdminService:
                 )
                 for event in self.pending_events
             },
+            events_by_month=[
+                {
+                    "month": "2026-04",
+                    "count": len(self.pending_events),
+                }
+            ],
+            events_by_organizer=[
+                {
+                    "organizer_id": self.pending_events[0].creator_id,
+                    "organizer_name": self.pending_events[0].creator_full_name,
+                    "count": len(self.pending_events),
+                }
+            ],
             registrations_total=3,
+            average_participation=3,
             average_feedback_rating=4.5,
         )
 

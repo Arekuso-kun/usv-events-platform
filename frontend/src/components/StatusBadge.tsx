@@ -1,4 +1,5 @@
 import type { EventItem, EventStatus } from "../types";
+import { formatEventStatus } from "../utils/labels";
 import { Badge } from "./ui/badge";
 import type { BadgeProps } from "./ui/badge";
 
@@ -6,14 +7,14 @@ type BadgeVariant = NonNullable<BadgeProps["variant"]>;
 
 const eventStatusConfig: Record<
   EventStatus,
-  { label: string; variant: BadgeVariant }
+  { variant: BadgeVariant }
 > = {
-  draft: { label: "Ciorna", variant: "neutral" },
-  pending_approval: { label: "In asteptare", variant: "warning" },
-  published: { label: "Publicat", variant: "info" },
-  rejected: { label: "Respins", variant: "danger" },
-  cancelled: { label: "Anulat", variant: "danger" },
-  completed: { label: "Finalizat", variant: "success" },
+  draft: { variant: "neutral" },
+  pending_approval: { variant: "warning" },
+  published: { variant: "info" },
+  rejected: { variant: "danger" },
+  cancelled: { variant: "danger" },
+  completed: { variant: "success" },
 };
 
 const eventTimingConfig: Record<
@@ -37,7 +38,7 @@ export type EventTimingStatus = "upcoming" | "ongoing" | "finished";
 export function StatusBadge({ status }: { status: EventStatus }) {
   const config = eventStatusConfig[status];
 
-  return <Badge variant={config.variant}>{config.label}</Badge>;
+  return <Badge variant={config.variant}>{formatEventStatus(status)}</Badge>;
 }
 
 export function EventTimingBadge({

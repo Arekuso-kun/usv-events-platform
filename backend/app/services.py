@@ -958,19 +958,59 @@ class SupabaseService(AuthService, EventsService, AdminService):
 
     def get_summary_report(self, current_user: UserResponse) -> AdminReportResponse:
         self._require_roles(current_user, {"admin"})
-        events = self._select_all("events", columns="status")
-        registrations = self._select_all("event_registrations", columns="id")
+        events = self._select_all(
+            "events",
+            columns="id,status,starts_at,creator_id",
+        )
+        registrations = self._select_all(
+            "event_registrations",
+            columns="event_id,status",
+        )
         feedback = self._select_all("event_feedback", columns="rating")
         by_status: dict[str, int] = {}
+        by_month: dict[str, int] = {}
+        by_organizer: dict[str, int] = {}
         for event in events:
             key = str(event.get("status") or "unknown")
             by_status[key] = by_status.get(key, 0) + 1
+            month_key = self._parse_datetime(event["starts_at"]).strftime("%Y-%m")
+            by_month[month_key] = by_month.get(month_key, 0) + 1
+            organizer_id = str(event.get("creator_id") or "")
+            if organizer_id:
+                by_organizer[organizer_id] = by_organizer.get(organizer_id, 0) + 1
 
+        active_registrations = [
+            row for row in registrations if row.get("status") != "cancelled"
+        ]
         ratings = [int(row["rating"]) for row in feedback if row.get("rating")]
+        organizer_names = self._profile_name_map(list(by_organizer))
         return AdminReportResponse(
             events_total=len(events),
             events_by_status=by_status,
-            registrations_total=len(registrations),
+            events_by_month=[
+                {"month": month, "count": count}
+                for month, count in sorted(by_month.items())
+            ],
+            events_by_organizer=[
+                {
+                    "organizer_id": organizer_id,
+                    "organizer_name": organizer_names.get(
+                        organizer_id, "Organizator necunoscut"
+                    ),
+                    "count": count,
+                }
+                for organizer_id, count in sorted(
+                    by_organizer.items(),
+                    key=lambda item: (
+                        -item[1],
+                        organizer_names.get(item[0], "Organizator necunoscut"),
+                    ),
+                )
+            ],
+            registrations_total=len(active_registrations),
+            average_participation=(
+                round(len(active_registrations) / len(events), 2) if events else 0
+            ),
             average_feedback_rating=(
                 round(sum(ratings) / len(ratings), 2) if ratings else None
             ),

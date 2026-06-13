@@ -117,7 +117,17 @@ export interface EventStats {
 export interface AdminReport {
   events_total: number;
   events_by_status: Record<string, number>;
+  events_by_month: Array<{
+    month: string;
+    count: number;
+  }>;
+  events_by_organizer: Array<{
+    organizer_id: string;
+    organizer_name: string;
+    count: number;
+  }>;
   registrations_total: number;
+  average_participation: number;
   average_feedback_rating: number | null;
 }
 

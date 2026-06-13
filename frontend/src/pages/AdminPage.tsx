@@ -1,5 +1,5 @@
 import { CheckCircle2, Eye, RefreshCw, UserPlus, XCircle } from "lucide-react";
-import { useMemo, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -36,7 +36,11 @@ import type {
   User,
 } from "../types";
 import { formatDateTime } from "../utils/date";
-import { formatCategoryName, formatParticipationMode } from "../utils/labels";
+import {
+  formatCategoryName,
+  formatEventStatus,
+  formatParticipationMode,
+} from "../utils/labels";
 
 interface AdminPageProps {
   user: User | null;
@@ -68,28 +72,11 @@ const monthFormatter = new Intl.DateTimeFormat("ro-RO", {
 export function AdminPage(props: AdminPageProps) {
   const [organizerForm, setOrganizerForm] = useState(emptyOrganizerForm);
   const [selectedOrganizer, setSelectedOrganizer] = useState("");
-
-  const eventsByMonth = useMemo(
-    () => buildEventsByMonth(props.managedEvents),
-    [props.managedEvents],
-  );
-  const eventsByOrganizer = useMemo(
-    () => buildEventsByOrganizer(props.managedEvents),
-    [props.managedEvents],
-  );
-  const averageParticipation = useMemo(() => {
-    if (props.managedEvents.length === 0) {
-      return 0;
-    }
-    const total = props.managedEvents.reduce(
-      (sum, event) => sum + event.registration_count,
-      0,
-    );
-    return total / props.managedEvents.length;
-  }, [props.managedEvents]);
+  const eventsByOrganizer = props.report?.events_by_organizer ?? [];
 
   const selectedOrganizerCount = selectedOrganizer
-    ? props.managedEvents.filter((event) => event.creator_id === selectedOrganizer).length
+    ? eventsByOrganizer.find((item) => item.organizer_id === selectedOrganizer)
+        ?.count ?? 0
     : null;
 
   async function submitOrganizer(formEvent: FormEvent) {
@@ -121,7 +108,9 @@ export function AdminPage(props: AdminPageProps) {
         />
         <ReportTile
           label="Participare medie"
-          value={averageParticipation.toFixed(1)}
+          value={
+            props.report ? props.report.average_participation.toFixed(1) : "-"
+          }
         />
         <ReportTile
           label="Rating mediu"
@@ -157,8 +146,8 @@ export function AdminPage(props: AdminPageProps) {
         <CardContent className="grid gap-4 xl:grid-cols-4">
           <ReportList
             title="Evenimente pe luna"
-            items={eventsByMonth.map((item) => ({
-              label: item.label,
+            items={(props.report?.events_by_month ?? []).map((item) => ({
+              label: formatReportMonth(item.month),
               value: item.count,
             }))}
             empty="Nu exista evenimente inregistrate."
@@ -167,7 +156,7 @@ export function AdminPage(props: AdminPageProps) {
             title="Evenimente pe status"
             items={Object.entries(props.report?.events_by_status ?? {}).map(
               ([status, count]) => ({
-                label: status,
+                label: formatEventStatus(status),
                 value: count,
               }),
             )}
@@ -186,9 +175,9 @@ export function AdminPage(props: AdminPageProps) {
               value={selectedOrganizer}
               placeholder="Alege organizator"
               onChange={setSelectedOrganizer}
-              options={props.organizerUsers.map((organizer) => ({
-                value: organizer.id,
-                label: organizer.full_name,
+              options={eventsByOrganizer.map((organizer) => ({
+                value: organizer.organizer_id,
+                label: organizer.organizer_name,
               }))}
             />
             <div className="rounded-md border border-[#d7dfeb] bg-[#fbfcff] p-4">
@@ -201,7 +190,7 @@ export function AdminPage(props: AdminPageProps) {
           <ReportList
             title="Top organizatori"
             items={eventsByOrganizer.slice(0, 5).map((item) => ({
-              label: item.name,
+              label: item.organizer_name,
               value: item.count,
             }))}
             empty="Nu exista organizatori cu evenimente."
@@ -639,20 +628,8 @@ function Field(props: { label: string; children: React.ReactNode }) {
   );
 }
 
-function buildEventsByMonth(events: EventItem[]) {
-  const grouped = new Map<string, { label: string; count: number }>();
-  for (const event of events) {
-    const date = new Date(event.starts_at);
-    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-    const label = monthFormatter.format(date);
-    grouped.set(key, {
-      label,
-      count: (grouped.get(key)?.count ?? 0) + 1,
-    });
-  }
-  return [...grouped.entries()]
-    .sort(([first], [second]) => first.localeCompare(second))
-    .map(([, value]) => value);
+function formatReportMonth(month: string): string {
+  return monthFormatter.format(new Date(`${month}-01T12:00:00`));
 }
 
 function lookupName(items: Lookup[], id?: string | null): string {
@@ -676,14 +653,3 @@ function registrationLabel(event: EventItem): string {
   return parts.join(" · ");
 }
 
-function buildEventsByOrganizer(events: EventItem[]) {
-  const grouped = new Map<string, { name: string; count: number }>();
-  for (const event of events) {
-    const key = event.creator_id;
-    grouped.set(key, {
-      name: event.creator_full_name,
-      count: (grouped.get(key)?.count ?? 0) + 1,
-    });
-  }
-  return [...grouped.values()].sort((first, second) => second.count - first.count);
-}

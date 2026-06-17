@@ -7,10 +7,16 @@ import {
   type FormEvent,
   type SetStateAction,
 } from "react";
-import { API_URL, getErrorMessage } from "../api/client";
+import {
+  API_URL,
+  AUTH_UPDATED_EVENT,
+  apiRequest,
+  clearStoredAuthTokens,
+  getErrorMessage,
+  getStoredAccessToken,
+  storeAuthTokens,
+} from "../api/client";
 import type { AuthMode, AuthResponse, User } from "../types";
-
-const TOKEN_KEY = "usv-events-access-token";
 
 interface UseAuthOptions {
   setError: Dispatch<SetStateAction<string>>;
@@ -21,7 +27,7 @@ interface UseAuthOptions {
 
 export function useAuth(options: UseAuthOptions) {
   const { setError, setLoading, setNotice, clearMessages } = options;
-  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || "");
+  const [token, setToken] = useState(getStoredAccessToken);
   const [user, setUser] = useState<User | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [authForm, setAuthForm] = useState({
@@ -31,7 +37,7 @@ export function useAuth(options: UseAuthOptions) {
   });
 
   const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY);
+    clearStoredAuthTokens();
     setToken("");
     setUser(null);
     setNotice("");
@@ -43,10 +49,9 @@ export function useAuth(options: UseAuthOptions) {
         return;
       }
       try {
-        const response = await axios.get<User>(`${API_URL}/auth/me`, {
-          headers: { Authorization: `Bearer ${nextToken}` },
-        });
-        setUser(response.data);
+        const currentUser = await apiRequest<User>("get", "/auth/me", nextToken);
+        setToken(getStoredAccessToken());
+        setUser(currentUser);
       } catch (requestError) {
         setError(getErrorMessage(requestError));
         logout();
@@ -58,6 +63,8 @@ export function useAuth(options: UseAuthOptions) {
   const handleOAuthRedirect = useCallback(() => {
     const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     const hashAccessToken = hash.get("access_token");
+    const hashRefreshToken = hash.get("refresh_token");
+    const expiresAt = Number(hash.get("expires_at"));
     const oauthError = hash.get("error_description") || hash.get("error");
 
     if (oauthError) {
@@ -67,7 +74,11 @@ export function useAuth(options: UseAuthOptions) {
     }
 
     if (hashAccessToken) {
-      localStorage.setItem(TOKEN_KEY, hashAccessToken);
+      storeAuthTokens({
+        access_token: hashAccessToken,
+        refresh_token: hashRefreshToken,
+        expires_at: Number.isFinite(expiresAt) ? expiresAt : null,
+      });
       setToken(hashAccessToken);
       setNotice("Autentificare Google reusita.");
       void loadMe(hashAccessToken);
@@ -102,7 +113,7 @@ export function useAuth(options: UseAuthOptions) {
         email: authForm.email,
         password: authForm.password,
       });
-      localStorage.setItem(TOKEN_KEY, response.data.access_token);
+      storeAuthTokens(response.data);
       setToken(response.data.access_token);
       setUser(response.data.user);
       setAuthForm((current) => ({ ...current, password: "" }));
@@ -123,12 +134,11 @@ export function useAuth(options: UseAuthOptions) {
     setLoading(true);
     clearMessages();
     try {
-      const response = await axios.post<User>(
-        `${API_URL}/auth/password`,
-        { password },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      setUser(response.data);
+      const updatedUser = await apiRequest<User>("post", "/auth/password", token, {
+        password,
+      });
+      setToken(getStoredAccessToken());
+      setUser(updatedUser);
       setNotice("Parola a fost setata.");
       return true;
     } catch (requestError) {
@@ -145,6 +155,23 @@ export function useAuth(options: UseAuthOptions) {
       `${API_URL}/auth/google/start?redirect_to=${encodeURIComponent(redirectTo)}`,
     );
   }
+
+  useEffect(() => {
+    const syncAuthState = () => {
+      const nextToken = getStoredAccessToken();
+      setToken(nextToken);
+      if (!nextToken) {
+        setUser(null);
+      }
+    };
+
+    window.addEventListener(AUTH_UPDATED_EVENT, syncAuthState);
+    window.addEventListener("storage", syncAuthState);
+    return () => {
+      window.removeEventListener(AUTH_UPDATED_EVENT, syncAuthState);
+      window.removeEventListener("storage", syncAuthState);
+    };
+  }, []);
 
   return {
     token,

@@ -1,4 +1,3 @@
-import axios from "axios";
 import {
   useCallback,
   useMemo,
@@ -6,7 +5,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { API_URL, apiRequest, getErrorMessage } from "../api/client";
+import { apiBlobRequest, apiRequest, getErrorMessage } from "../api/client";
 import type { EventItem, EventStats, EventStatus, Registration, User } from "../types";
 
 interface UseManagedEventsOptions {
@@ -126,14 +125,11 @@ export function useManagedEvents(options: UseManagedEventsOptions) {
 
   async function exportRegistrations(eventId: string) {
     try {
-      const response = await axios.get(
-        `${API_URL}/events/${eventId}/registrations/export`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          responseType: "blob",
-        },
+      const blob = await apiBlobRequest(
+        `/events/${eventId}/registrations/export`,
+        token,
       );
-      const url = window.URL.createObjectURL(response.data);
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       link.download = `event-${eventId}-registrations.csv`;

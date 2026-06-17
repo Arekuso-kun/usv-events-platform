@@ -27,6 +27,17 @@ class LoginRequest(BaseModel):
         return value.strip().lower()
 
 
+class RefreshTokenRequest(BaseModel):
+    """Refresh token payload used to renew an expired access token."""
+
+    refresh_token: str = Field(min_length=1)
+
+    @field_validator("refresh_token")
+    @classmethod
+    def clean_refresh_token(cls, value: str) -> str:
+        return value.strip()
+
+
 class RegisterRequest(LoginRequest):
     """Student self-registration payload."""
 

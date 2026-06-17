@@ -11,6 +11,7 @@ from ..schemas import (
     LoginRequest,
     PasswordUpdateRequest,
     RegisterRequest,
+    RefreshTokenRequest,
     TokenResponse,
     UserResponse,
 )
@@ -49,6 +50,14 @@ def login(
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> TokenResponse:
     return auth_service.login(payload.email, payload.password)
+
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh_session(
+    payload: RefreshTokenRequest,
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+) -> TokenResponse:
+    return auth_service.refresh_session(payload)
 
 
 @router.post("/password", response_model=UserResponse)

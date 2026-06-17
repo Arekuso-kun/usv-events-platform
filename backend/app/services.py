@@ -33,6 +33,7 @@ from .schemas import (
     OrganizerCreateRequest,
     PasswordUpdateRequest,
     RegistrationResponse,
+    RefreshTokenRequest,
     SponsorCreateRequest,
     SponsorLogoUploadRequest,
     SponsorResponse,
@@ -52,6 +53,8 @@ class AuthService(Protocol):
     def register(self, email: str, password: str, full_name: str) -> TokenResponse: ...
 
     def login(self, email: str, password: str) -> TokenResponse: ...
+
+    def refresh_session(self, payload: RefreshTokenRequest) -> TokenResponse: ...
 
     def get_google_sign_in_url(self, redirect_to: str | None) -> str: ...
 
@@ -215,6 +218,19 @@ class SupabaseService(AuthService, EventsService, AdminService):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=f"Invalid email or password: {self._stringify_error(exc)}",
+            ) from exc
+
+        return self._build_token_response(response)
+
+    def refresh_session(self, payload: RefreshTokenRequest) -> TokenResponse:
+        try:
+            response = get_supabase_anon_client().auth.refresh_session(
+                payload.refresh_token
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Sesiunea a expirat. Autentifica-te din nou.",
             ) from exc
 
         return self._build_token_response(response)

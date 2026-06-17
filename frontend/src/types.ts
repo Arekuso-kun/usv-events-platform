@@ -36,6 +36,8 @@ export interface OrganizerCreatePayload {
 
 export interface AuthResponse {
   access_token: string;
+  refresh_token?: string | null;
+  expires_at?: number | null;
   user: User;
 }
 

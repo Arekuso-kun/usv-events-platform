@@ -38,6 +38,19 @@ def test_registration_and_login(client: TestClient, auth_headers):
     assert login_payload["user"]["email"] == "student@usv.ro"
 
 
+def test_refresh_session(client: TestClient):
+    response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": "test-refresh"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["access_token"] == "test-token"
+    assert payload["refresh_token"] == "test-refresh"
+    assert payload["user"]["email"] == "student@usv.ro"
+
+
 def test_google_login_returns_supabase_google_session(client: TestClient):
     response = client.post(
         "/auth/google", json={"id_token": "header.payload.signature"}

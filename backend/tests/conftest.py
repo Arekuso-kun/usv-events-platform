@@ -50,6 +50,9 @@ class FakeAuthService:
     def login(self, email: str, password: str) -> TokenResponse:
         return self.login_response
 
+    def refresh_session(self, payload) -> TokenResponse:
+        return self.login_response
+
     def get_google_sign_in_url(self, redirect_to: str | None) -> str:
         return redirect_to or self.google_url
 

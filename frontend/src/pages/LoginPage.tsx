@@ -53,7 +53,7 @@ export function LoginPage(props: LoginPageProps) {
                     email: event.target.value,
                   }))
                 }
-                placeholder="email@usv.ro"
+                placeholder="Email"
                 required
               />
             </Field>

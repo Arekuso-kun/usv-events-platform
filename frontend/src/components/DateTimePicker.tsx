@@ -26,6 +26,7 @@ export function DateTimePicker(props: {
   value: string;
   placeholder: string;
   required?: boolean;
+  disabled?: boolean;
   minValue?: string;
   maxValue?: string;
   onChange: (value: string) => void;
@@ -125,11 +126,15 @@ export function DateTimePicker(props: {
   }, [maxValue, minValue, props.value, props.onChange]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={props.disabled ? false : open}
+      onOpenChange={(nextOpen) => setOpen(props.disabled ? false : nextOpen)}
+    >
       <PopoverTrigger asChild>
         <Button
           type="button"
           variant="outline"
+          disabled={props.disabled}
           className={[
             "h-11 w-full justify-start gap-2 px-3 text-left font-normal",
             date ? "text-[#192041]" : "text-[#667085]",
@@ -145,6 +150,7 @@ export function DateTimePicker(props: {
         <input
           className="pointer-events-none absolute h-px w-px opacity-0"
           required
+          disabled={props.disabled}
           tabIndex={-1}
           value={props.value}
           onChange={() => undefined}

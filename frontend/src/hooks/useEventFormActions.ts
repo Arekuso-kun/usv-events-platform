@@ -2,6 +2,11 @@ import { useState, type Dispatch, type FormEvent, type SetStateAction } from "re
 import { useNavigate } from "react-router-dom";
 import { apiRequest, getErrorMessage } from "../api/client";
 import {
+  formatFileSize,
+  MAX_EVENT_MATERIAL_FILE_SIZE_BYTES,
+  MAX_EVENT_MATERIALS,
+} from "../config/materialLimits";
+import {
   emptyEventForm,
   emptyMaterialForm,
   emptySponsorForm,
@@ -74,6 +79,10 @@ export function useEventFormActions(options: UseEventFormActionsOptions) {
 
   async function createEvent(event: FormEvent) {
     event.preventDefault();
+    if (pendingMaterials.length > MAX_EVENT_MATERIALS) {
+      setError(`Poti atasa maximum ${MAX_EVENT_MATERIALS} materiale per eveniment.`);
+      return;
+    }
     setLoading(true);
     clearMessages();
     try {
@@ -140,6 +149,14 @@ export function useEventFormActions(options: UseEventFormActionsOptions) {
       setError("Alege un fisier sau completeaza un URL pentru material.");
       return;
     }
+    const validationError = validateMaterialForm(
+      materialForm,
+      selectedEvent?.id === eventId ? selectedEvent.materials.length : 0,
+    );
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     try {
       await saveMaterial(eventId, materialForm);
       setMaterialForm(emptyMaterialForm);
@@ -177,6 +194,14 @@ export function useEventFormActions(options: UseEventFormActionsOptions) {
     event.preventDefault();
     if (!materialForm.file && !materialForm.file_url.trim()) {
       setError("Alege un fisier sau completeaza un URL pentru material.");
+      return;
+    }
+    const validationError = validateMaterialForm(
+      materialForm,
+      pendingMaterials.length,
+    );
+    if (validationError) {
+      setError(validationError);
       return;
     }
     setPendingMaterials((current) => [
@@ -308,6 +333,37 @@ export function useEventFormActions(options: UseEventFormActionsOptions) {
     createEvent,
     updateEvent,
   };
+}
+
+function validateMaterialForm(
+  material: MaterialFormState,
+  currentMaterialCount: number,
+): string {
+  if (currentMaterialCount >= MAX_EVENT_MATERIALS) {
+    return `Poti atasa maximum ${MAX_EVENT_MATERIALS} materiale per eveniment.`;
+  }
+
+  if (
+    material.file &&
+    material.file.size > MAX_EVENT_MATERIAL_FILE_SIZE_BYTES
+  ) {
+    return `Fisierul depaseste limita de ${formatFileSize(
+      MAX_EVENT_MATERIAL_FILE_SIZE_BYTES,
+    )}.`;
+  }
+
+  const metadataSize = Number(material.file_size_bytes);
+  if (
+    material.file_size_bytes &&
+    Number.isFinite(metadataSize) &&
+    metadataSize > MAX_EVENT_MATERIAL_FILE_SIZE_BYTES
+  ) {
+    return `Fisierul depaseste limita de ${formatFileSize(
+      MAX_EVENT_MATERIAL_FILE_SIZE_BYTES,
+    )}.`;
+  }
+
+  return "";
 }
 
 async function fileToBase64(file: File): Promise<string> {

@@ -72,11 +72,13 @@ export function eventFormPayload(form: EventFormState) {
     faculty_id: form.faculty_id || null,
     department_id: form.department_id || null,
     registration_required: form.registration_required,
-    registration_url: form.registration_url || null,
+    registration_url: form.registration_required ? form.registration_url || null : null,
     registration_deadline: form.registration_required && form.registration_deadline
       ? toApiDateTime(form.registration_deadline)
       : null,
-    max_participants: form.max_participants ? Number(form.max_participants) : null,
+    max_participants: form.registration_required && form.max_participants
+      ? Number(form.max_participants)
+      : null,
     is_free: form.is_free,
   };
 }
@@ -93,9 +95,13 @@ export function eventToForm(event: EventItem): EventFormState {
     faculty_id: event.faculty_id || "",
     department_id: event.department_id || "",
     registration_required: event.registration_required,
-    registration_url: event.registration_url || "",
-    registration_deadline: toLocalDateTimeValue(event.registration_deadline),
-    max_participants: event.max_participants ? String(event.max_participants) : "",
+    registration_url: event.registration_required ? event.registration_url || "" : "",
+    registration_deadline: event.registration_required
+      ? toLocalDateTimeValue(event.registration_deadline)
+      : "",
+    max_participants: event.registration_required && event.max_participants
+      ? String(event.max_participants)
+      : "",
     is_free: event.is_free,
   };
 }

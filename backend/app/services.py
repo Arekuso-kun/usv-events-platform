@@ -11,7 +11,11 @@ from urllib.parse import quote, quote_plus, urlencode, urlparse
 
 from fastapi import HTTPException, status
 
-from .config import get_settings
+from .config import (
+    MAX_EVENT_MATERIAL_FILE_SIZE_BYTES,
+    MAX_EVENT_MATERIALS_PER_EVENT,
+    get_settings,
+)
 from .schemas import (
     AdminRejectEventRequest,
     AdminReportResponse,
@@ -570,6 +574,7 @@ class SupabaseService(AuthService, EventsService, AdminService):
     ) -> MaterialResponse:
         event = self._get_event_or_404(event_id)
         self._require_event_manager(event, current_user)
+        self._validate_material_limits(event_id, file_size_bytes=payload.file_size_bytes)
         response = (
             self._client()
             .table(get_settings().supabase_event_materials_table)
@@ -598,6 +603,7 @@ class SupabaseService(AuthService, EventsService, AdminService):
         self._require_event_manager(event, current_user)
         if not content:
             raise HTTPException(status_code=400, detail="Fisierul este gol.")
+        self._validate_material_limits(event_id, file_size_bytes=len(content))
 
         settings = get_settings()
         safe_name = self._safe_storage_name(file_name)
@@ -1340,6 +1346,41 @@ class SupabaseService(AuthService, EventsService, AdminService):
             created_at=self._parse_datetime(row["created_at"]),
         )
 
+    def _validate_material_limits(
+        self, event_id: str, *, file_size_bytes: int | None
+    ) -> None:
+        material_count = self._event_material_count(event_id)
+        if material_count >= MAX_EVENT_MATERIALS_PER_EVENT:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "Limita de "
+                    f"{MAX_EVENT_MATERIALS_PER_EVENT} materiale "
+                    "pentru acest eveniment a fost atinsa."
+                ),
+            )
+
+        if (
+            file_size_bytes is not None
+            and file_size_bytes > MAX_EVENT_MATERIAL_FILE_SIZE_BYTES
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=(
+                    "Fisierul depaseste limita de "
+                    f"{self._format_file_size(MAX_EVENT_MATERIAL_FILE_SIZE_BYTES)}."
+                ),
+            )
+
+    def _event_material_count(self, event_id: str) -> int:
+        rows = self._select_rows(
+            "event_materials",
+            column="event_id",
+            values=[event_id],
+            columns="id",
+        )
+        return len(rows)
+
     def _serialize_feedback(self, row: dict[str, Any]) -> FeedbackResponse:
         return FeedbackResponse(
             id=str(row["id"]),
@@ -1753,6 +1794,14 @@ class SupabaseService(AuthService, EventsService, AdminService):
     def _safe_storage_name(file_name: str) -> str:
         cleaned = re.sub(r"[^A-Za-z0-9._-]+", "-", file_name.strip()).strip(".-")
         return cleaned or "material"
+
+    @staticmethod
+    def _format_file_size(size_bytes: int) -> str:
+        if size_bytes >= 1024 * 1024:
+            return f"{size_bytes / (1024 * 1024):g} MB"
+        if size_bytes >= 1024:
+            return f"{size_bytes / 1024:g} KB"
+        return f"{size_bytes} B"
 
     @staticmethod
     def _storage_public_url(bucket: str, object_path: str) -> str:

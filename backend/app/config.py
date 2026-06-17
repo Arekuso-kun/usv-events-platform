@@ -8,6 +8,9 @@ from pydantic import BaseModel
 
 load_dotenv()
 
+MAX_EVENT_MATERIALS_PER_EVENT = 10
+MAX_EVENT_MATERIAL_FILE_SIZE_BYTES = 10 * 1024 * 1024
+
 
 class Settings(BaseModel):
     """Runtime configuration loaded from environment variables."""

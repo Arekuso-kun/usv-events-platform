@@ -24,6 +24,11 @@ import { Label } from "../components/ui/label";
 import { Select } from "../components/ui/select";
 import { Textarea } from "../components/ui/textarea";
 import {
+  formatFileSize,
+  MAX_EVENT_MATERIAL_FILE_SIZE_BYTES,
+  MAX_EVENT_MATERIALS,
+} from "../config/materialLimits";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -87,6 +92,7 @@ export function OrganizerEventFormPage(props: OrganizerEventFormPageProps) {
   const event = props.events.find((item) => item.id === eventId) || null;
   const [venueModalOpen, setVenueModalOpen] = useState(false);
   const [sponsorModalOpen, setSponsorModalOpen] = useState(false);
+  const registrationDisabled = !props.eventForm.registration_required;
   const canUsePage =
     props.user && (props.user.role === "organizer" || props.user.role === "admin");
   const minimumEventDateTime =
@@ -181,6 +187,7 @@ export function OrganizerEventFormPage(props: OrganizerEventFormPageProps) {
                       props.setEventField("registration_url", formEvent.target.value)
                     }
                     placeholder="Link inscriere"
+                    disabled={registrationDisabled}
                   />
                 </Field>
               </div>
@@ -233,6 +240,7 @@ export function OrganizerEventFormPage(props: OrganizerEventFormPageProps) {
                       placeholder="Deadline inscriere"
                       minValue={minimumEventDateTime}
                       maxValue={registrationDeadlineMax}
+                      disabled={registrationDisabled}
                     />
                   </Field>
                   <Field label="Max participanti">
@@ -244,6 +252,7 @@ export function OrganizerEventFormPage(props: OrganizerEventFormPageProps) {
                         props.setEventField("max_participants", formEvent.target.value)
                       }
                       placeholder="Max participanti"
+                      disabled={registrationDisabled}
                     />
                   </Field>
                 </div>
@@ -255,7 +264,9 @@ export function OrganizerEventFormPage(props: OrganizerEventFormPageProps) {
                         const nextValue = checked === true;
                         props.setEventField("registration_required", nextValue);
                         if (!nextValue) {
+                          props.setEventField("registration_url", "");
                           props.setEventField("registration_deadline", "");
+                          props.setEventField("max_participants", "");
                         }
                       }}
                     />
@@ -531,6 +542,15 @@ function MaterialPanel(
   const materialItems = props.event?.materials ?? props.pendingMaterials;
   const hasMaterialUrl = props.materialForm.file_url.trim().length > 0;
   const hasMaterialFile = Boolean(props.materialForm.file);
+  const materialLimitReached = materialItems.length >= MAX_EVENT_MATERIALS;
+  const selectedFileTooLarge = Boolean(
+    props.materialForm.file &&
+      props.materialForm.file.size > MAX_EVENT_MATERIAL_FILE_SIZE_BYTES,
+  );
+  const materialSubmitDisabled =
+    materialLimitReached ||
+    selectedFileTooLarge ||
+    (!props.materialForm.file && !props.materialForm.file_url.trim());
 
   return (
     <section className="grid gap-4 rounded-md border border-[#d7dfeb] bg-white p-4">
@@ -538,6 +558,10 @@ function MaterialPanel(
         <h4 className="font-semibold text-[#192041]">Materiale</h4>
         <p className="mt-1 text-sm text-[#667085]">
           Incarca un fisier nou sau ataseaza un link deja existent.
+        </p>
+        <p className="mt-1 text-xs text-[#667085]">
+          {materialItems.length}/{MAX_EVENT_MATERIALS} materiale atasate - fisier
+          max. {formatFileSize(MAX_EVENT_MATERIAL_FILE_SIZE_BYTES)}
         </p>
       </div>
         <ul className="grid gap-2">
@@ -600,6 +624,7 @@ function MaterialPanel(
                 }))
               }
               placeholder="Titlu material"
+              disabled={materialLimitReached}
               required
             />
           </Field>
@@ -621,7 +646,7 @@ function MaterialPanel(
                 }));
               }}
               placeholder="URL material existent"
-              disabled={hasMaterialFile}
+              disabled={hasMaterialFile || materialLimitReached}
             />
           </Field>
           <Field label="Fisier nou">
@@ -635,7 +660,7 @@ function MaterialPanel(
                       : "empty-file"
                 }
                 type="file"
-                disabled={hasMaterialUrl}
+                disabled={hasMaterialUrl || materialLimitReached}
                 onChange={(formEvent) => {
                   const file = formEvent.target.files?.[0] ?? null;
                   props.setMaterialForm((current) => ({
@@ -653,13 +678,25 @@ function MaterialPanel(
                   }));
                 }}
               />
+              {selectedFileTooLarge && (
+                <p className="text-xs font-medium text-[#b42318]">
+                  Fisierul selectat depaseste limita de{" "}
+                  {formatFileSize(MAX_EVENT_MATERIAL_FILE_SIZE_BYTES)}.
+                </p>
+              )}
+              {materialLimitReached && (
+                <p className="text-xs font-medium text-[#b42318]">
+                  Limita de {MAX_EVENT_MATERIALS} materiale pentru acest eveniment a
+                  fost atinsa.
+                </p>
+              )}
             </div>
           </Field>
           <div className="flex items-center justify-between gap-3">
             <Button
               className="w-fit"
               variant="secondary"
-              disabled={!props.materialForm.file && !props.materialForm.file_url.trim()}
+              disabled={materialSubmitDisabled}
             >
               <FileUp />
               {props.event ? "Ataseaza material" : "Adauga material in formular"}
@@ -829,6 +866,7 @@ function DateTimeField(props: {
   value: string;
   placeholder: string;
   required?: boolean;
+  disabled?: boolean;
   minValue?: string;
   maxValue?: string;
   onChange: (value: string) => void;
@@ -838,6 +876,7 @@ function DateTimeField(props: {
       value={props.value}
       placeholder={props.placeholder}
       required={props.required}
+      disabled={props.disabled}
       minValue={props.minValue}
       maxValue={props.maxValue}
       onChange={props.onChange}

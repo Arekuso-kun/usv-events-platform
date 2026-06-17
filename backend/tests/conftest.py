@@ -5,6 +5,10 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 import pytest
+from app.config import (
+    MAX_EVENT_MATERIAL_FILE_SIZE_BYTES,
+    MAX_EVENT_MATERIALS_PER_EVENT,
+)
 from app.schemas import (
     AdminRejectEventRequest,
     AdminReportResponse,
@@ -268,6 +272,7 @@ class FakeEventsService:
         self, event_id: str, payload: MaterialCreateRequest, current_user: UserResponse
     ) -> MaterialResponse:
         self.get_event(event_id)
+        self._validate_material_limits(event_id, payload.file_size_bytes)
         material = MaterialResponse(
             id=f"material-{len(self.materials) + 1}",
             event_id=event_id,
@@ -293,6 +298,7 @@ class FakeEventsService:
         current_user: UserResponse,
     ) -> MaterialResponse:
         self.get_event(event_id)
+        self._validate_material_limits(event_id, len(content))
         material = MaterialResponse(
             id=f"material-{len(self.materials) + 1}",
             event_id=event_id,
@@ -316,6 +322,30 @@ class FakeEventsService:
             for material in self.materials
             if not (material.event_id == event_id and material.id == material_id)
         ]
+
+    def _validate_material_limits(
+        self, event_id: str, file_size_bytes: int | None
+    ) -> None:
+        material_count = len(
+            [material for material in self.materials if material.event_id == event_id]
+        )
+        if material_count >= MAX_EVENT_MATERIALS_PER_EVENT:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Limita de "
+                    f"{MAX_EVENT_MATERIALS_PER_EVENT} materiale "
+                    "pentru acest eveniment a fost atinsa."
+                ),
+            )
+        if (
+            file_size_bytes is not None
+            and file_size_bytes > MAX_EVENT_MATERIAL_FILE_SIZE_BYTES
+        ):
+            raise HTTPException(
+                status_code=413,
+                detail="Fisierul depaseste limita configurata.",
+            )
 
     def get_event_stats(
         self, event_id: str, current_user: UserResponse

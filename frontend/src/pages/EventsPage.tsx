@@ -12,6 +12,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { API_URL } from "../api/client";
 import { DatePicker } from "../components/DatePicker";
+import { useNotifications } from "../components/NotificationProvider";
 import { SelectField } from "../components/SelectField";
 import {
   EventTimingBadge,
@@ -710,14 +711,17 @@ function EventActionPanel(props: {
 function EventQrCode({ event }: { event: EventItem }) {
   const eventUrl = `${window.location.origin}/events/${event.id}`;
   const [copied, setCopied] = useState(false);
+  const notifications = useNotifications();
 
   async function copyEventUrl() {
     try {
       await navigator.clipboard.writeText(eventUrl);
       setCopied(true);
+      notifications.success("Link copiat.");
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
       setCopied(false);
+      notifications.error("Linkul nu a putut fi copiat.");
     }
   }
 
@@ -729,6 +733,7 @@ function EventQrCode({ event }: { event: EventItem }) {
           text: event.description || "Eveniment USV",
           url: eventUrl,
         });
+        notifications.success("Eveniment partajat.");
         return;
       }
     } catch {

@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type SetStateAction } from "react";
 import { AppRoutes } from "./AppRoutes";
 import "./App.css";
 import { AppLayout } from "./components/layout/AppLayout";
+import { useNotifications } from "./components/NotificationProvider";
 import { useAdminData } from "./hooks/useAdminData";
 import { useAuth } from "./hooks/useAuth";
 import { useEventFormActions } from "./hooks/useEventFormActions";
@@ -11,9 +12,33 @@ import { useReferenceData } from "./hooks/useReferenceData";
 
 export default function App() {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
-  const [notice, setNotice] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const notifications = useNotifications();
+  const setNotice = useCallback(
+    (value: SetStateAction<string>) => {
+      const message = typeof value === "function" ? value("") : value;
+      if (message) {
+        notifications.success(message);
+      } else {
+        notifications.clearType("success");
+      }
+    },
+    [notifications],
+  );
+  const setError = useCallback(
+    (value: SetStateAction<string>) => {
+      const message = typeof value === "function" ? value("") : value;
+      if (message) {
+        notifications.error(message);
+      } else {
+        notifications.clearType("error");
+      }
+    },
+    [notifications],
+  );
+  const clearMessages = useCallback(() => {
+    notifications.clearNotifications();
+  }, [notifications]);
   const {
     token,
     user,
@@ -153,11 +178,6 @@ export default function App() {
     }
   }, [canManageSelected, clearManagerData, loadManagerData, selectedEvent]);
 
-  function clearMessages() {
-    setError("");
-    setNotice("");
-  }
-
   return (
     <AppLayout
       authMode={authMode}
@@ -165,14 +185,11 @@ export default function App() {
       loading={loading}
       user={user}
       eventsCount={events.length}
-      notice={notice}
-      error={error}
       setAuthMode={setAuthMode}
       setAuthForm={setAuthForm}
       submitAuth={submitAuth}
       startGoogleLogin={startGoogleLogin}
       logout={logout}
-      clearMessages={clearMessages}
     >
       <AppRoutes
         authMode={authMode}

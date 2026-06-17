@@ -1,7 +1,6 @@
 import type { Dispatch, FormEvent, ReactNode, SetStateAction } from "react";
 import { useLocation } from "react-router-dom";
 import type { AppView, AuthMode, User } from "../../types";
-import { Button } from "../ui/button";
 import { AppSidebar } from "./AppSidebar";
 
 interface AppLayoutProps {
@@ -10,8 +9,6 @@ interface AppLayoutProps {
   loading: boolean;
   user: User | null;
   eventsCount: number;
-  notice: string;
-  error: string;
   children: ReactNode;
   setAuthMode: (mode: AuthMode) => void;
   setAuthForm: Dispatch<
@@ -20,7 +17,6 @@ interface AppLayoutProps {
   submitAuth: (event: FormEvent) => void;
   startGoogleLogin: () => void;
   logout: () => void;
-  clearMessages: () => void;
 }
 
 export function AppLayout(props: AppLayoutProps) {
@@ -53,27 +49,6 @@ export function AppLayout(props: AppLayoutProps) {
               </span>
             </div>
           </header>
-
-          {(props.notice || props.error) && (
-            <div
-              className={[
-                "flex items-center justify-between gap-3 rounded-md px-3 py-2 text-sm",
-                props.error
-                  ? "bg-[rgba(39,46,83,0.08)] text-[#272E53]"
-                  : "bg-[rgba(134,193,234,0.22)] text-[#254591]",
-              ].join(" ")}
-            >
-              <span>{props.error || props.notice}</span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={props.clearMessages}
-              >
-                Inchide
-              </Button>
-            </div>
-          )}
 
           {props.children}
         </div>

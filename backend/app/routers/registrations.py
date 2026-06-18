@@ -29,6 +29,15 @@ def get_my_event_registration(
     return events_service.get_my_registration(event_id, current_user)
 
 
+@router.delete("/registration/me", response_model=EventResponse)
+def cancel_my_event_registration(
+    event_id: str,
+    events_service: Annotated[EventsService, Depends(get_events_service)],
+    current_user: Annotated[UserResponse, Depends(get_current_user)],
+) -> EventResponse:
+    return events_service.cancel_my_registration(event_id, current_user)
+
+
 @router.get("/registrations", response_model=list[RegistrationResponse])
 def list_event_registrations(
     event_id: str,

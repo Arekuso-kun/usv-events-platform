@@ -94,6 +94,10 @@ class EventsService(Protocol):
         self, event_id: str, current_user: UserResponse
     ) -> EventResponse: ...
 
+    def cancel_my_registration(
+        self, event_id: str, current_user: UserResponse
+    ) -> EventResponse: ...
+
     def get_my_registration(
         self, event_id: str, current_user: UserResponse
     ) -> RegistrationResponse | None: ...
@@ -437,11 +441,13 @@ class SupabaseService(AuthService, EventsService, AdminService):
             .select("*")
             .eq("event_id", event_id)
             .eq("user_id", current_user.id)
-            .neq("status", "cancelled")
             .limit(1)
             .execute()
         )
-        if existing_registration.data:
+        existing_row = (
+            existing_registration.data[0] if existing_registration.data else None
+        )
+        if existing_row and existing_row.get("status") != "cancelled":
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="You are already registered for this event.",
@@ -456,18 +462,64 @@ class SupabaseService(AuthService, EventsService, AdminService):
             )
 
         try:
-            (
-                self._client()
-                .table(get_settings().supabase_event_registrations_table)
-                .insert({"event_id": event_id, "user_id": current_user.id})
-                .execute()
-            )
+            if existing_row:
+                (
+                    self._client()
+                    .table(get_settings().supabase_event_registrations_table)
+                    .update(
+                        {
+                            "status": "registered",
+                            "registered_at": self._now_iso(),
+                            "cancelled_at": None,
+                            "checked_in_at": None,
+                        }
+                    )
+                    .eq("id", existing_row["id"])
+                    .execute()
+                )
+            else:
+                (
+                    self._client()
+                    .table(get_settings().supabase_event_registrations_table)
+                    .insert({"event_id": event_id, "user_id": current_user.id})
+                    .execute()
+                )
         except Exception as exc:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Could not register for the event: {self._stringify_error(exc)}",
             ) from exc
 
+        return self._serialize_event(self._get_event_or_404(event_id))
+
+    def cancel_my_registration(
+        self, event_id: str, current_user: UserResponse
+    ) -> EventResponse:
+        self._get_event_or_404(event_id)
+        response = (
+            self._client()
+            .table(get_settings().supabase_event_registrations_table)
+            .select("*")
+            .eq("event_id", event_id)
+            .eq("user_id", current_user.id)
+            .neq("status", "cancelled")
+            .limit(1)
+            .execute()
+        )
+        if not response.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Registration not found.",
+            )
+
+        registration_id = str(response.data[0]["id"])
+        (
+            self._client()
+            .table(get_settings().supabase_event_registrations_table)
+            .update({"status": "cancelled", "cancelled_at": self._now_iso()})
+            .eq("id", registration_id)
+            .execute()
+        )
         return self._serialize_event(self._get_event_or_404(event_id))
 
     def get_my_registration(

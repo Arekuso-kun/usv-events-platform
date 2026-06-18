@@ -100,6 +100,7 @@ interface AppRoutesProps {
     eventId: string,
     alreadyRegistered?: boolean,
   ) => Promise<void>;
+  cancelRegistration: (eventId: string) => Promise<void>;
   loadMyRegistration: (eventId: string) => Promise<void>;
   submitFeedback: (event: FormEvent, eventId: string) => Promise<void>;
   setFeedbackForm: Dispatch<SetStateAction<{ rating: string; comment: string }>>;
@@ -189,6 +190,7 @@ export function AppRoutes(props: AppRoutesProps) {
               myRegistrations={props.myRegistrations}
               loadMyRegistration={props.loadMyRegistration}
               registerForEvent={props.registerForEvent}
+              cancelRegistration={props.cancelRegistration}
               submitFeedback={props.submitFeedback}
               feedbackForm={props.feedbackForm}
               setFeedbackForm={props.setFeedbackForm}

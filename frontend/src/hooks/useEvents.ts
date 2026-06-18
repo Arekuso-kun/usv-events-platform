@@ -79,6 +79,22 @@ export function useEvents(options: UseEventsOptions) {
     }
   }
 
+  async function cancelRegistration(eventId: string) {
+    try {
+      const updated = await request<EventItem>(
+        "delete",
+        `/events/${eventId}/registration/me`,
+      );
+      setEvents((current) =>
+        current.map((event) => (event.id === eventId ? updated : event)),
+      );
+      setMyRegistrations((current) => ({ ...current, [eventId]: null }));
+      setNotice("Inscriere anulata.");
+    } catch (requestError) {
+      setError(getErrorMessage(requestError));
+    }
+  }
+
   const loadMyRegistration = useCallback(
     async (eventId: string) => {
       if (!token) {
@@ -124,6 +140,7 @@ export function useEvents(options: UseEventsOptions) {
     loadMyRegistration,
     setFilter,
     registerForEvent,
+    cancelRegistration,
     submitFeedback,
   };
 }

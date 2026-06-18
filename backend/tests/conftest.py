@@ -162,6 +162,17 @@ class FakeEventsService:
     ) -> EventResponse:
         for index, event in enumerate(self.events):
             if event.id == event_id:
+                existing_registration_index = next(
+                    (
+                        registration_index
+                        for registration_index, registration in enumerate(
+                            self.registrations
+                        )
+                        if registration.event_id == event_id
+                        and registration.user_id == current_user.id
+                    ),
+                    None,
+                )
                 if any(
                     registration.event_id == event_id
                     and registration.user_id == current_user.id
@@ -172,23 +183,64 @@ class FakeEventsService:
                         status_code=409,
                         detail="You are already registered for this event.",
                     )
-                self.registrations.append(
-                    RegistrationResponse(
-                        id=f"registration-{len(self.registrations) + 1}",
-                        event_id=event_id,
-                        user_id=current_user.id,
-                        user_name=current_user.full_name,
-                        user_email=current_user.email,
-                        status="registered",
-                        registered_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+                if existing_registration_index is not None:
+                    self.registrations[
+                        existing_registration_index
+                    ] = self.registrations[existing_registration_index].model_copy(
+                        update={
+                            "status": "registered",
+                            "registered_at": datetime(
+                                2026, 4, 3, tzinfo=timezone.utc
+                            ),
+                            "cancelled_at": None,
+                            "checked_in_at": None,
+                        }
                     )
-                )
+                else:
+                    self.registrations.append(
+                        RegistrationResponse(
+                            id=f"registration-{len(self.registrations) + 1}",
+                            event_id=event_id,
+                            user_id=current_user.id,
+                            user_name=current_user.full_name,
+                            user_email=current_user.email,
+                            status="registered",
+                            registered_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+                        )
+                    )
                 updated = event.model_copy(
                     update={"registration_count": event.registration_count + 1}
                 )
                 self.events[index] = updated
                 return updated
         raise HTTPException(status_code=404, detail="Event not found.")
+
+    def cancel_my_registration(
+        self, event_id: str, current_user: UserResponse
+    ) -> EventResponse:
+        for index, registration in enumerate(self.registrations):
+            if (
+                registration.event_id == event_id
+                and registration.user_id == current_user.id
+                and registration.status != "cancelled"
+            ):
+                self.registrations[index] = registration.model_copy(
+                    update={
+                        "status": "cancelled",
+                        "cancelled_at": datetime(2026, 4, 2, tzinfo=timezone.utc),
+                    }
+                )
+                event = self.get_event(event_id)
+                updated = event.model_copy(
+                    update={
+                        "registration_count": max(event.registration_count - 1, 0)
+                    }
+                )
+                self.events = [
+                    updated if item.id == event_id else item for item in self.events
+                ]
+                return updated
+        raise HTTPException(status_code=404, detail="Registration not found.")
 
     def get_my_registration(
         self, event_id: str, current_user: UserResponse

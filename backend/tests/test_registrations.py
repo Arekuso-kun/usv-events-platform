@@ -48,6 +48,39 @@ def test_registration_management_stats_and_csv_export(
     assert stats_response.json()["checked_in_count"] == 1
 
 
+def test_cancel_my_registration(client: TestClient, auth_headers, create_event):
+    event_id = create_event(client)["id"]
+
+    register_response = client.post(
+        f"/events/{event_id}/register", headers=auth_headers()
+    )
+    assert register_response.status_code == 200
+    assert register_response.json()["registration_count"] == 1
+
+    cancel_response = client.delete(
+        f"/events/{event_id}/registration/me", headers=auth_headers()
+    )
+    assert cancel_response.status_code == 200
+    assert cancel_response.json()["registration_count"] == 0
+
+    my_registration_response = client.get(
+        f"/events/{event_id}/registration/me", headers=auth_headers()
+    )
+    assert my_registration_response.status_code == 200
+    assert my_registration_response.json() is None
+
+    second_cancel_response = client.delete(
+        f"/events/{event_id}/registration/me", headers=auth_headers()
+    )
+    assert second_cancel_response.status_code == 404
+
+    register_again_response = client.post(
+        f"/events/{event_id}/register", headers=auth_headers()
+    )
+    assert register_again_response.status_code == 200
+    assert register_again_response.json()["registration_count"] == 1
+
+
 def test_registration_deadline_passed_helper():
     now = datetime(2026, 6, 13, 12, tzinfo=timezone.utc)
 

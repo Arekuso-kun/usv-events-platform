@@ -72,6 +72,7 @@ interface EventDetailPageProps {
   myRegistrations: Record<string, Registration | null>;
   loadMyRegistration: (eventId: string) => Promise<void>;
   registerForEvent: (id: string, alreadyRegistered?: boolean) => Promise<void>;
+  cancelRegistration: (eventId: string) => Promise<void>;
   submitFeedback: (event: FormEvent, eventId: string) => void;
   feedbackForm: { rating: string; comment: string };
   setFeedbackForm: Dispatch<SetStateAction<{ rating: string; comment: string }>>;
@@ -351,6 +352,7 @@ export function EventDetailPage(props: EventDetailPageProps) {
             myRegistration={myRegistration}
             canUseInternalRegistration={canUseInternalRegistration}
             registerForEvent={props.registerForEvent}
+            cancelRegistration={props.cancelRegistration}
             user={props.user}
           />
         </CardContent>
@@ -646,6 +648,7 @@ function EventActionPanel(props: {
   canUseInternalRegistration: boolean;
   user: User | null;
   registerForEvent: (id: string, alreadyRegistered?: boolean) => Promise<void>;
+  cancelRegistration: (eventId: string) => Promise<void>;
 }) {
   const registrationClosed = isRegistrationDeadlinePassed(
     props.event.registration_deadline,
@@ -679,6 +682,15 @@ function EventActionPanel(props: {
                 : registrationClosed
                   ? "Inscriere inchisa"
                   : "Inscriere"}
+            </Button>
+          )}
+          {props.myRegistration && (
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => void props.cancelRegistration(props.event.id)}
+            >
+              Anuleaza inscrierea
             </Button>
           )}
           {props.event.registration_url && (

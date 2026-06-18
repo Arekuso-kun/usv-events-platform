@@ -71,6 +71,7 @@ export default function App() {
     loadMyRegistration,
     setFilter,
     registerForEvent,
+    cancelRegistration,
     submitFeedback,
   } = useEvents({ token, setError, setNotice, setSelectedEventId });
   const {
@@ -227,6 +228,7 @@ export default function App() {
         setFilter={setFilter}
         setSelectedEventId={setSelectedEventId}
         registerForEvent={registerForEvent}
+        cancelRegistration={cancelRegistration}
         loadMyRegistration={loadMyRegistration}
         submitFeedback={submitFeedback}
         setFeedbackForm={setFeedbackForm}

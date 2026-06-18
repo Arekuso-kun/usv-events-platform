@@ -22,6 +22,7 @@ interface AppLayoutProps {
 export function AppLayout(props: AppLayoutProps) {
   const location = useLocation();
   const view = pathToView(location.pathname);
+  const showHeader = location.pathname !== "/login";
 
   return (
     <div className="grid min-h-screen bg-[#f5f7fb] text-[#192041] lg:grid-cols-[280px_minmax(0,1fr)]">
@@ -39,16 +40,18 @@ export function AppLayout(props: AppLayoutProps) {
 
       <main className="min-w-0 p-4 sm:p-5 lg:p-[22px]">
         <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-4">
-          <header className="flex items-center justify-between gap-4 border-b border-[#d7dfeb] pb-3 max-sm:flex-col max-sm:items-stretch">
-            <div>
-              <h1 className="m-0 text-3xl leading-tight text-[#192041]">
-                {pageTitle(location.pathname, view)}
-              </h1>
-              <span className="text-sm text-[#667085]">
-                {props.eventsCount} evenimente publicate
-              </span>
-            </div>
-          </header>
+          {showHeader && (
+            <header className="flex items-center justify-between gap-4 border-b border-[#d7dfeb] pb-3 max-sm:flex-col max-sm:items-stretch">
+              <div>
+                <h1 className="m-0 text-3xl leading-tight text-[#192041]">
+                  {pageTitle(location.pathname, view)}
+                </h1>
+                <span className="text-sm text-[#667085]">
+                  {props.eventsCount} evenimente publicate
+                </span>
+              </div>
+            </header>
+          )}
 
           {props.children}
         </div>
